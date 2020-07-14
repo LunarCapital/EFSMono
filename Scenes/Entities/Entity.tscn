@@ -1,0 +1,16 @@
+[gd_scene load_steps=4 format=2]
+
+[ext_resource path="res://Assets/Sprites/Entities/Players/cylinder_blue.png" type="Texture" id=1]
+[ext_resource path="res://Scripts/Entities/Entity.cs" type="Script" id=2]
+[ext_resource path="res://Assets/Shaders/jitter_free_pixelart.tres" type="Material" id=3]
+
+[node name="Entity" type="KinematicBody2D"]
+material = ExtResource( 3 )
+script = ExtResource( 2 )
+
+[node name="Sprite" type="Sprite" parent="."]
+texture = ExtResource( 1 )
+offset = Vector2( 0, -32 )
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
+polygon = PoolVector2Array( -16, 0, 0, -8, 16, 0, 0, 8 )
