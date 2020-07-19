@@ -1,9 +1,10 @@
 using Godot;
 using System;
+
+namespace ToolNamespace
+{
 [Tool]
-
 public class TileMapOffset : TileMap {
-
     public override void _Ready() {
         NavigationPolygon navPoly = new NavigationPolygon();
         var offset = new Vector2(0, -32);
@@ -19,5 +20,5 @@ public class TileMapOffset : TileMap {
         }
 
     }
-
+}
 }

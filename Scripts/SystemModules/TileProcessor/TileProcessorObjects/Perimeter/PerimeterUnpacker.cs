@@ -1,8 +1,9 @@
 using Godot;
 using System;
 using SCol = System.Collections.Generic;
+using MCN = MainControllerNamespace;
 
-namespace TileControllerNamespace
+namespace TileProcessorNamespace
 {
 /// <summary>
 /// A class that unpacks the results of PerimeterBuilder into three dictionaries (that work something
@@ -11,22 +12,22 @@ namespace TileControllerNamespace
 public class PerimeterUnpacker
 {
     /// <summary>
-    /// Unpacks the input dictionary into the three dictionary properties in this class. 
+    /// Unpacks the input dictionary into the three dictionary properties in this class.
     /// To be more specific, the input dict maps a tilemap to a list of all of its edge collections
     /// for each tile group. Each edge collection contains all perimeters in a tile group including that
     /// of its holes. This func uses this class's struct keys to 'pigeonhole' each edge collection into
-    /// its right place so it can be 'looked up' (like in a DB) with the keys 
+    /// its right place so it can be 'looked up' (like in a DB) with the keys
     /// [tilemap, tile group, hole group].
     /// </summary>
-    /// <param name="tileMapToAllEdgeColls">All TileCollections from every hole group form every 
+    /// <param name="tileMapToAllEdgeColls">All TileCollections from every hole group form every
     /// tile group from every tile map.</param>
     /// <param name="tileMaps">List of all TileMaps.</param>
     /// <returns>The three dictionary properties of PerimeterData.</returns>
-    public (SCol.Dictionary<EdgeCollKey, EdgeCollection> edgeCollMap, 
-             SCol.Dictionary<HoleGroupKey, int> holeGroupMap, 
+    public (SCol.Dictionary<EdgeCollKey, EdgeCollection> edgeCollMap,
+             SCol.Dictionary<HoleGroupKey, int> holeGroupMap,
              SCol.Dictionary<TileGroupKey, int> tileGroupMap) UnpackEdgeCols(
-                                SCol.Dictionary<TileMap, SCol.List<EdgeCollection>> tileMapToAllEdgeColls, 
-                                TileMapList tileMaps)
+                                SCol.Dictionary<TileMap, SCol.List<EdgeCollection>> tileMapToAllEdgeColls,
+                                MCN.TileMapList tileMaps)
     {
         var edgeCollMap = new SCol.Dictionary<EdgeCollKey, EdgeCollection>();
         var holeGroupMap = new SCol.Dictionary<HoleGroupKey, int>();
@@ -35,13 +36,13 @@ public class PerimeterUnpacker
         foreach (TileMap tileMap in tileMaps.Values)
         {
             SCol.List<EdgeCollection> allEdgeColls = tileMapToAllEdgeColls[tileMap];
-            tileGroupMap.Add(new TileGroupKey(tileMap), allEdgeColls.Count); 
+            tileGroupMap.Add(new TileGroupKey(tileMap), allEdgeColls.Count);
 
             for (int tileGroup = 0; tileGroup < allEdgeColls.Count; tileGroup++)
             {
                 EdgeCollection thisGroupsColl = allEdgeColls[tileGroup];
                 SCol.List<EdgeCollection> splitEdgeColl = this._SplitEdgeColl(thisGroupsColl); //should hold perim in index 0 and holes in 1-inf
-                holeGroupMap.Add(new HoleGroupKey(tileMap, tileGroup), splitEdgeColl.Count); 
+                holeGroupMap.Add(new HoleGroupKey(tileMap, tileGroup), splitEdgeColl.Count);
 
                 for (int holeGroup = 0; holeGroup < splitEdgeColl.Count; holeGroup++)
                 {

@@ -1,6 +1,8 @@
 using Godot;
 using System;
 
+namespace AutoloadNamespace
+{
 /// <summary>
 /// Autoloaded script.
 /// Contains easily accessible global constants.
@@ -20,4 +22,5 @@ public class Globals : Node
     //TILE NAMING CONSTANTS
     public const string STATIC_BODY_LEDGES_NAME = "Ledges";
     public const string STATIC_BODY_WALLS_NAME = "Walls";
+}
 }

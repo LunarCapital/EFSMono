@@ -41,6 +41,9 @@
     <WarningLevel>4</WarningLevel>
     <ConsolePause>false</ConsolePause>
   </PropertyGroup>
+  <PropertyGroup>
+    <CodeAnalysisRuleSet>C:\Users\LUNARCAPITAL\AppData\Local\JosefPihrt\Roslynator\VisualStudioCode\roslynator.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies">
       <Version>1.0.0</Version>

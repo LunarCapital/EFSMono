@@ -1,13 +1,16 @@
 using Godot;
 using System;
 using SCol = System.Collections.Generic;
+using MCN = MainControllerNamespace;
+using AutoloadNamespace;
 
-namespace TileControllerNamespace
+namespace TileProcessorNamespace
 {
 using LD = LedgeData;
 /// <summary>
+/// <para>
 /// A class dedicated to building Ledges. A proper description of ledges are in the LedgeBuilderResult description
-/// but a brief explanation here: 
+/// but a brief explanation here:
 ///     * Every outer tile in a tile group may be either connected to an adjacent tile on a lower height, or nothing.
 ///     * If an outer tile has an adjacent lower tile, entities can pass through to fall down.
 ///     * If an outer tile has no adjacent lower tile, its edge should act as a wall to prevent anything falling into the void.
@@ -16,10 +19,11 @@ using LD = LedgeData;
 ///       and two adjacent pass-throughs, it has ONE LEDGE GROUP (passable ledges are not grouped).
 ///     * If a tile group consisting of one tile (which therefore has only one outer tile, itself) has one wall north, one
 ///       pass-through east, one wall south, and one pass-through west, it has TWO LEDGE GROUPS (important to understand this,
-///       even though this example also has two walls and two pass-throughs, they are placed into two groups because the same 
+///       even though this example also has two walls and two pass-throughs, they are placed into two groups because the same
 ///       kinds of ledges are not adjacent).
-/// 
+///
 /// This class does not superimpose ledges. An explanation of that is in LedgeSuperimposer.
+/// </para>
 /// </summary>
 public class LedgeBuilder : Reference
 {
@@ -27,16 +31,16 @@ public class LedgeBuilder : Reference
     /// <summary>
     /// Builds the initial layer of ledges given all perimter data as an input.
     /// More specifically, initial layer means that each tilemap has ledge data built for themselves,
-    /// WITHOUT considering superimposition.  
+    /// WITHOUT considering superimposition.
     /// </summary>
     /// <param name="perimData">Info on all perimeters.</param>
     /// <param name="tileMaps">List of all tilemaps.</param>
     /// <returns>Four dictionaries matching LedgeData's four properties which map EdgeCollections containing ledge data to multiple fields.</returns>
-    public (SCol.Dictionary<LedgeCollKey, EdgeCollection> ledgeCollMap, 
-            SCol.Dictionary<LedgeGroupKey, int> ledgeGroupMap, 
-            SCol.Dictionary<HoleGroupKey, int> holeGroupMap, 
-            SCol.Dictionary<TileGroupKey, int> tileGroupMap) BuildLedges(PerimeterData perimData, 
-                                                                         TileMapList tileMaps)
+    public (SCol.Dictionary<LedgeCollKey, EdgeCollection> ledgeCollMap,
+            SCol.Dictionary<LedgeGroupKey, int> ledgeGroupMap,
+            SCol.Dictionary<HoleGroupKey, int> holeGroupMap,
+            SCol.Dictionary<TileGroupKey, int> tileGroupMap) BuildLedges(PerimeterData perimData,
+                                                                         MCN.TileMapList tileMaps)
     {
         var ledgeCollMap = new SCol.Dictionary<LedgeCollKey, EdgeCollection>();
         var ledgeGroupMap = new SCol.Dictionary<LedgeGroupKey, int>();
@@ -54,7 +58,7 @@ public class LedgeBuilder : Reference
                 for (int holeGroup = 0; holeGroup < maxHoleGroups; holeGroup++)
                 {
                     EdgeCollection thisPerim = perimData.GetEdgeCollection(tileMap, tileGroup, holeGroup);
-                    (ledgeCollMap, ledgeGroupMap) = this._FillLedges(ledgeCollMap, ledgeGroupMap, tileMaps, 
+                    (ledgeCollMap, ledgeGroupMap) = this._FillLedges(ledgeCollMap, ledgeGroupMap, tileMaps,
                                                                      tileMap, thisPerim, tileGroup, holeGroup);
                 }
             }
@@ -72,11 +76,11 @@ public class LedgeBuilder : Reference
     /// The above two are here for copy-and-return purposes (maintaining object immutability).
     /// <param name="perimeter">EdgeCollection holding perimeter which will be separated in this func.</param>
     /// <returns>Two dictionaries matching the two input dicts but with the new ledge data added to each.</returns>
-    private (SCol.Dictionary<LedgeCollKey, EdgeCollection> ledgeCollMap, 
+    private (SCol.Dictionary<LedgeCollKey, EdgeCollection> ledgeCollMap,
              SCol.Dictionary<LedgeGroupKey, int> ledgeGroupMap) _FillLedges(
                                                 SCol.Dictionary<LedgeCollKey, EdgeCollection> ledgeCollMap,
                                                 SCol.Dictionary<LedgeGroupKey, int> ledgeGroupMap,
-                                                TileMapList tileMaps,
+                                                MCN.TileMapList tileMaps,
                                                 TileMap tileMap,
                                                 EdgeCollection perimeter,
                                                 int tileGroup,
@@ -87,7 +91,7 @@ public class LedgeBuilder : Reference
 
         EdgeCollection ledges = new EdgeCollection();
         int ledgeGroup = 0;
-        
+
         foreach (Edge edge in perimeter)
         {
             Vector2 currentTile = edge.tileCoords;
@@ -98,22 +102,20 @@ public class LedgeBuilder : Reference
             { //no adjacent tile exists
                 ledges.Add(edge);
             }
-            else {
-                if (ledges.Count > 0)
-                { //gap in ledges, finish current ledge group and move to next one
-                    ledgeCollMapClone.Add(new LedgeCollKey(tileMap, tileGroup, holeGroup, tileMap, ledgeGroup), 
-                                         new EdgeCollection(ledges.GetOrderedCollection()));
-                    ledgeGroup += 1;
-                    ledges = new EdgeCollection();
-                }
+            else if (ledges.Count > 0)
+            { //gap in ledges, finish current ledge group and move to next one
+                ledgeCollMapClone.Add(new LedgeCollKey(tileMap, tileGroup, holeGroup, tileMap, ledgeGroup),
+                                        new EdgeCollection(ledges.GetOrderedCollection()));
+                ledgeGroup++;
+                ledges = new EdgeCollection();
             }
-        }
+            }
 
         if (ledges.Count > 0)
         { //store ledges if not done already
-            ledgeCollMapClone.Add(new LedgeCollKey(tileMap, tileGroup, holeGroup, tileMap, ledgeGroup), 
+            ledgeCollMapClone.Add(new LedgeCollKey(tileMap, tileGroup, holeGroup, tileMap, ledgeGroup),
                                  new EdgeCollection(ledges.GetOrderedCollection()));
-            ledgeGroup += 1;
+            ledgeGroup++;
         }
 
         ledgeGroupMapClone.Add(new LedgeGroupKey(tileMap, tileGroup, holeGroup, tileMap), ledgeGroup);
@@ -122,8 +124,8 @@ public class LedgeBuilder : Reference
 
     /// <summary>
     /// From some input edge, grab the tile it originated from and check if there is an adjacent tile
-    /// in the direction TO the edge on any lower tilemap. 
-    /// Basically we are checking if it is possible to move from the original tile in the direction 
+    /// in the direction TO the edge on any lower tilemap.
+    /// Basically we are checking if it is possible to move from the original tile in the direction
     /// of the edge and fall to a lower tile.
     /// Should no adjacent tile exist, returns the current tile.
     /// </summary>
@@ -131,14 +133,14 @@ public class LedgeBuilder : Reference
     /// <param name="edge">Edge that is being examined.</param>
     /// <param name="currentLayer">Current layer that edge is on.</param>
     /// <returns>Coords of the highest adjacent tile, or current tile if no adjacent tile exists.</returns>
-    private Vector2 _GetAdjacentLowerTile(TileMapList tileMaps, Edge edge, int currentLayer)
+    private Vector2 _GetAdjacentLowerTile(MCN.TileMapList tileMaps, Edge edge, int currentLayer)
     {
         Vector2 currentTile = edge.tileCoords;
         Vector2 adjTile = currentTile;
 
         for (int i = currentLayer; i >= 0; i--) {
             Vector2 adjCoords = this._GetAdjLowerCoords(edge, currentLayer, i);
-            TileMap lowerTileMap = tileMaps[i]; //TODO TileMapCollection to remove the danger associated with this line
+            TileMap lowerTileMap = tileMaps[i];
 
             if (adjCoords != currentTile && lowerTileMap.GetCellv(adjCoords) != TileMap.InvalidCell) {
                 adjTile = adjCoords;

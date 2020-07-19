@@ -1,17 +1,23 @@
 using Godot;
 using System;
-using SCol = System.Collections.Generic;
+using AutoloadNamespace;
 
-namespace TileControllerNamespace
+namespace TileProcessorNamespace
 {
 /// <summary>
 /// A class used to describe the perimeter of a single tile via its four edges.
 /// </summary>
-public class TilePerim : Reference
+public class TilePerim
 {
 
     public const int UNCOLORED = -1;
     private const int TILE_VERTICES_NUM = 4;
+    /// <summary>
+    /// CCW_SIDE is the same as Globals.SIDE except WEST and EAST are reversed.
+    /// This is because Globals.SIDE has NESW in traditional order, while Godot stores
+    /// tile vertices in CCW order.
+    /// </summary>
+    private enum CCW_SIDE {WEST = 1, SOUTH = 2, EAST = 3, NORTH = 0};
 
     public Edge north { get; private set;}
     public Edge east { get; private set;}
@@ -19,12 +25,11 @@ public class TilePerim : Reference
     public Edge west { get; private set;}
     public int color { get; set; }
     public int id { get; set;}
-    private readonly Vector2 _tileCoords; //Currently unused, remove if unneeded for ledges calcs
+
 
     public TilePerim(Vector2[] vertices, Vector2 cell, int id)
     {
         this.color = UNCOLORED;
-        this._tileCoords = cell;
         this.id = id;
         try
         {
@@ -40,8 +45,8 @@ public class TilePerim : Reference
                     throw new NullReferenceException("One of an edge's sides is null. N: " + north + ", E: " + east + ", S: " + south + ", W: " + west);
                 }
             }
-        } 
-        catch (Exception e) 
+        }
+        catch (Exception e)
         {
             GD.PrintS("Exception msg: " + e.Message);
         }
@@ -96,26 +101,27 @@ public class TilePerim : Reference
     private void _InitEdges(Vector2[] vertices, Vector2 cell)
     {
         int topIndex = this._GetTopIndex(vertices);
-        for (int i = 2*vertices.Length; i > 0; i--) //-- because we go CCW. 2*len so we don't go negative.
-        { 
+        //for (int i = 2*vertices.Length; i > 0; i--) //-- because we go CCW. 2*len so we don't go negative.
+        for (int i = 0; i < vertices.Length; i++)
+        { //assumes that tile vertices order is CCW, which it is in Godot 3.2
             int rawIndex = (i+topIndex);
             Vector2 vertexA = vertices[rawIndex%vertices.Length];
-            Vector2 vertexB = vertices[(rawIndex - 1)%vertices.Length];
-            bool invalidSide = false; 
+            Vector2 vertexB = vertices[(rawIndex + 1)%vertices.Length];
+            bool invalidSide = false;
 
              //check the index of point B
-            switch ((rawIndex - 1)%vertices.Length)
+            switch ((rawIndex + 1)%vertices.Length)
             {
-                case (int)Globals.SIDE.WEST:
+                case (int)TilePerim.CCW_SIDE.WEST:
                     this.west = new Edge(vertexA, vertexB, cell, (int)Globals.SIDE.WEST);
                     break;
-                case (int)Globals.SIDE.SOUTH:
+                case (int)TilePerim.CCW_SIDE.SOUTH:
                     this.south = new Edge(vertexA, vertexB, cell, (int)Globals.SIDE.SOUTH);
                     break;
-                case (int)Globals.SIDE.EAST:
+                case (int)TilePerim.CCW_SIDE.EAST:
                     this.east = new Edge(vertexA, vertexB, cell, (int)Globals.SIDE.EAST);
                     break;
-                case (int)Globals.SIDE.NORTH:
+                case (int)TilePerim.CCW_SIDE.NORTH:
                     this.north = new Edge(vertexA, vertexB, cell, (int)Globals.SIDE.NORTH);
                     break;
                 default:
@@ -124,7 +130,7 @@ public class TilePerim : Reference
             }
             if (invalidSide)
             {
-                throw new _InvalidSideException("Attempted to construct TilePerim with an edge of invalid side (non-NESW)"); 
+                throw new _InvalidSideException("Attempted to construct TilePerim with an edge of invalid side (non-NESW)");
             }
         }
     }
@@ -158,7 +164,15 @@ public class TilePerim : Reference
     private class _VerticesArraySizeMismatchException : Exception
     {
         public _VerticesArraySizeMismatchException(string message) : base(message) {}
-    }
+
+            public _VerticesArraySizeMismatchException() : base()
+            {
+            }
+
+            public _VerticesArraySizeMismatchException(string message, Exception innerException) : base(message, innerException)
+            {
+            }
+        }
 
     [Serializable]
     /// <summary>
@@ -168,7 +182,15 @@ public class TilePerim : Reference
     private class _InvalidSideException : Exception
     {
         public _InvalidSideException(string message) : base(message) {}
-    }
+
+            public _InvalidSideException() : base()
+            {
+            }
+
+            public _InvalidSideException(string message, Exception innerException) : base(message, innerException)
+            {
+            }
+        }
 
 }
 }

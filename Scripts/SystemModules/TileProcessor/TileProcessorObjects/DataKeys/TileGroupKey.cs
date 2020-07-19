@@ -1,6 +1,6 @@
 using Godot;
 
-namespace TileControllerNamespace
+namespace TileProcessorNamespace
 {
 /// <summary>
 /// A class used as a key for the Data class dictionaries.
@@ -8,7 +8,7 @@ namespace TileControllerNamespace
 /// </summary>
 public class TileGroupKey
 {
-    private TileMap tileMap;
+    private readonly TileMap tileMap;
 
     public TileGroupKey(TileMap tileMap)
     {

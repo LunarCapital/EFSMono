@@ -1,6 +1,6 @@
 using Godot;
 
-namespace TileControllerNamespace
+namespace TileProcessorNamespace
 {
 /// <summary>
 /// A class used as a key for the Data class dictionaries.
@@ -8,18 +8,18 @@ namespace TileControllerNamespace
 /// </summary>
 public class HoleGroupKey
 {
-    private TileMap tileMap;
-    private int tileGroup;
+    private TileMap _tileMap { get; }
+    private int _tileGroup { get; }
 
     public HoleGroupKey(TileMap tileMap, int tileGroup)
     {
-        this.tileMap = tileMap;
-        this.tileGroup = tileGroup;
+        this._tileMap = tileMap;
+        this._tileGroup = tileGroup;
     }
 
     public override int GetHashCode()
     {
-        return this.tileGroup.GetHashCode() ^ this.tileGroup.GetHashCode();
+        return this._tileGroup.GetHashCode() ^ this._tileGroup.GetHashCode();
     }
 
     public override bool Equals(object obj)
@@ -29,7 +29,7 @@ public class HoleGroupKey
 
     public bool Equals(HoleGroupKey obj)
     {
-        return this.tileMap == obj.tileMap && this.tileGroup == obj.tileGroup;
+        return this._tileMap == obj._tileMap && this._tileGroup == obj._tileGroup;
     }
 
 }

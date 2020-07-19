@@ -2,14 +2,14 @@ using Godot;
 using System;
 using SCol = System.Collections.Generic;
 
-namespace TileControllerNamespace
+namespace TileProcessorNamespace
 {
 /// <summary>
-/// Edge Collection class which holds a group of edges that may or may not form a closed loop.
-///
+/// <para>Edge Collection class which holds a group of edges that may or may not form a closed loop.
 /// Holds functions specifically for a collection of edges, such as sorting them in order,
-/// 'smoothing' them (merging collinear edges), etc.  
+/// 'smoothing' them (merging collinear edges), etc.
 /// Thank god I can extend lists in C#!
+/// </para>
 /// </summary>
 public class EdgeCollection : SCol.List<Edge>
 {
@@ -42,15 +42,8 @@ public class EdgeCollection : SCol.List<Edge>
             return false;
         } else
         {
-            if (this[0].a == this[this.Count - 1].b)
-            {
-                return true;
+                return this[0].a == this[this.Count - 1].b;
             }
-            else
-            {
-                return false;
-            }
-        }
     }
 
     /// <summary>
@@ -61,7 +54,7 @@ public class EdgeCollection : SCol.List<Edge>
     /// <returns>True if contains edge with matching points, false otherwise.</returns>
     public bool HasEdgePoints(Edge edge)
     {
-        foreach (Edge searchEdge in this) 
+        foreach (Edge searchEdge in this)
         {
             if (searchEdge.IsIdentical(edge) || searchEdge.GetReverseEdge().IsIdentical(edge))
             {
@@ -120,23 +113,23 @@ public class EdgeCollection : SCol.List<Edge>
         while (orderedList.Count < this.Count)
         {
             if (orderedList.Count == 0) //just began ordering, throw in the first edge we find
-            { 
+            {
                 orderedList.AddFirst(unorderedEdges[0]);
                 unorderedEdges[0].isChecked = true;
-            } 
-            else 
+            }
+            else
             {
                 Edge backEdge = orderedList.Last.Value;
                 Edge frontEdge = orderedList.First.Value.GetReverseEdge(); //because GrabSharedEdge uses edge.b to find connected edge
                 int edgeConnToBackID = this._GrabConnectedEdgeID(unorderedEdges, backEdge);
                 int edgeConnToFrontID = this._GrabConnectedEdgeID(unorderedEdges, frontEdge);
 
-                if (edgeConnToBackID != -1) 
+                if (edgeConnToBackID != -1)
                 {
                     orderedList = this._AddBackEdge(orderedList, backEdge, unorderedEdges[edgeConnToBackID]);
                     unorderedEdges[edgeConnToBackID].isChecked = true;
                 }
-                if (edgeConnToFrontID != -1 && edgeConnToFrontID != edgeConnToBackID) 
+                if (edgeConnToFrontID != -1 && edgeConnToFrontID != edgeConnToBackID)
                 { //ensure we don't add the same edge twice
                     orderedList = this._AddFrontEdge(orderedList, frontEdge, unorderedEdges[edgeConnToFrontID]);
                     unorderedEdges[edgeConnToFrontID].isChecked = true;
@@ -151,19 +144,21 @@ public class EdgeCollection : SCol.List<Edge>
     }
 
     /// <summary>
+    /// <para>
     /// Makes and returns a list of Vector2s that contain only the vertices of the shape
     /// that the edges in this class make. In other words, adjacent collinear edges are merged
-    /// into a single edge. 
+    /// into a single edge.
     /// This function relies on the following assumptions:
     ///     1. The edges within this collection are ordered
     ///     2. There are no disconnected edges within this collection
     /// If either of these are not true, this function will return an empty list.
-    /// 
+    ///
     /// On the other hand, it is okay if the edges within this collection DO NOT make a closed loop.
     /// To indicate whether the shape made by these edges is open or closed, the last coordinate point
     /// in the returned list will equal the first coordinate IFF closed.
+    /// </para>
     /// </summary>
-    /// <returns>A list of Vector2 vertices describing the shape made by the edges in this 
+    /// <returns>A list of Vector2 vertices describing the shape made by the edges in this
     /// colltion, OR an empty list if the edges are unordered or disconnected.</returns>
     public SCol.List<Vector2> GetSimplifiedPerim()
     {
@@ -172,21 +167,21 @@ public class EdgeCollection : SCol.List<Edge>
         foreach (Edge edge in this)
         {
             if (simplifiedPerim.Count == 0) //nothing added yet, just throw in both points
-            { 
+            {
                 simplifiedPerim.Add(edge.a);
                 simplifiedPerim.Add(edge.b);
             } else
             {
-                if (edge.a != simplifiedPerim[simplifiedPerim.Count - 1]) 
+                if (edge.a != simplifiedPerim[simplifiedPerim.Count - 1])
                 { //UNORDERED OR DISCONNECTED EDGES
                     return new SCol.List<Vector2>(); // return empty arr
                 }
                 if (simplifiedPerim.Count == this.Count) //we're now looking at the last edge
-                { 
+                {
                     simplifiedPerim = this._ProcessFinalExtension(simplifiedPerim, edge);
-                } 
+                }
                 else
-                { 
+                {
                     simplifiedPerim = this._ProcessExtension(simplifiedPerim, edge);
                 }
             }
@@ -194,11 +189,11 @@ public class EdgeCollection : SCol.List<Edge>
         return simplifiedPerim;
     }
 
-    /////////////////////////
-    /////////////////////////
-    ///PRIVATE FUNCS BELOW///
-    /////////////////////////
-    /////////////////////////
+    ///////////////////////////
+    ///////////////////////////
+    ////PRIVATE FUNCS BELOW////
+    ///////////////////////////
+    ///////////////////////////
 
     /// <summary>
     /// Sets all edges' isChecked property within this class to false.
@@ -229,7 +224,7 @@ public class EdgeCollection : SCol.List<Edge>
     }
 
     /// <summary>
-    /// Given some input list of edges AND a reference edge, looks for the index of an edge in 
+    /// Given some input list of edges AND a reference edge, looks for the index of an edge in
     /// the list that shares a coordinate point with the reference edge.b
     /// If we cannot find an edge that connects to the reference edge, we return -1.
     /// </summary>
@@ -352,26 +347,26 @@ public class EdgeCollection : SCol.List<Edge>
             { //extend previous TO first edge
                 simplifiedPerimClone[0] = previousA;
                 simplifiedPerimClone.RemoveAt(simplifiedPerimClone.Count - 1);
-            } 
+            }
             else if (previousSlope == finalSlope)
             { //extend previous TO final edge
                 simplifiedPerimClone[simplifiedPerimClone.Count - 1] = firstA;
-            } 
+            }
             else if (firstSlope == finalSlope)
             { //extend first TO final edge
                 simplifiedPerimClone[0] = previousB;
-            } 
-            else 
+            }
+            else
             { //extend nothing. add first edge's point A because loop is closed
                 simplifiedPerimClone.Add(firstA);
             }
         }
-        else 
+        else
         { //OPEN LOOP
             if (previousSlope == finalSlope)
             { //extend previous TO final edge
                 simplifiedPerimClone[simplifiedPerimClone.Count - 1] = finalEdge.b;
-            } 
+            }
             else
             { //extend nothing, add final edge's point B because loop is open
                 simplifiedPerimClone.Add(finalEdge.b);

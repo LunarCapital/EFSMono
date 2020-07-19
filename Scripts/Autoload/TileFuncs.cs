@@ -1,9 +1,11 @@
 using Godot;
 using System;
 
+namespace AutoloadNamespace
+{
 /// <summary>
 /// Autoloaded script.
-/// Contains easily accessible tile-related functions. 
+/// Contains easily accessible tile-related functions.
 /// </summary>
 public class TileFuncs : Node
 {
@@ -56,5 +58,5 @@ public class TileFuncs : Node
         }
         return adjTile;
     }
-
+}
 }

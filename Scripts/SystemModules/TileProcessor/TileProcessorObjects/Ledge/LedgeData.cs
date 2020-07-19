@@ -1,15 +1,15 @@
 using Godot;
 using System;
-using System.Linq;
 using SCol = System.Collections.Generic;
+using MCN = MainControllerNamespace;
 
-namespace TileControllerNamespace
+namespace TileProcessorNamespace
 {
 /// <summary>
-/// A class created by the LedgeBuilder class and 'completed' by the LedgeSuperimposer class.  
+/// A class created by the LedgeBuilder class and 'completed' by the LedgeSuperimposer class.
 /// Contains info about edge perimeters (including hole edge perimeters on the inside) of tile groups,
 /// which we dub 'Ledges'. Ledges are either:
-///     1. The separator between a tile and the void (AKA no tile adjacent in that direction), in 
+///     1. The separator between a tile and the void (AKA no tile adjacent in that direction), in
 ///        which case the ledge acts as a wall.
 ///     2. The separator between a tile on height N and a tile on height M < N, in which case the
 ///        ledge should allow an entity to pass through the edge and fall to the adjacent tile on
@@ -34,7 +34,7 @@ namespace TileControllerNamespace
 /// above N unless some height M > N has a tile on coordinte (x, y) OR adjacent to that coordinate in the direction
 /// of the ledge. If a height does not copy a lower height's ledge wall is NOT copied to a higher height M, then all
 /// heights ABOVE M do not need to have that ledge wall copied to them either.
-/// 
+///
 /// Quick description of each key:
 ///     1. tileMap: As with PerimeterData, a TileMap represents a height.
 ///     2. tileGroup: Tiles within a TileMap may be disconnected from each other. As such, these tiles are in different groups.
@@ -44,40 +44,40 @@ namespace TileControllerNamespace
 /// </summary>
 public class LedgeData
 {
-    private SCol.Dictionary<LedgeCollKey, EdgeCollection> ledgeCollMap;
-    private SCol.Dictionary<LedgeGroupKey, int> ledgeGroupMap;
-    private SCol.Dictionary<HoleGroupKey, int> holeGroupMap;
-    private SCol.Dictionary<TileGroupKey, int> tileGroupMap;
+    private readonly SCol.Dictionary<LedgeCollKey, EdgeCollection> _ledgeCollMap;
+    private readonly SCol.Dictionary<LedgeGroupKey, int> _ledgeGroupMap;
+    private readonly SCol.Dictionary<HoleGroupKey, int> _holeGroupMap;
+    private readonly SCol.Dictionary<TileGroupKey, int> _tileGroupMap;
 
-    public LedgeData(PerimeterData perimData, TileMapList tileMaps)
+    public LedgeData(PerimeterData perimData, MCN.TileMapList tileMaps)
     {
         LedgeBuilder ledgeBuilder = new LedgeBuilder();
         LedgeSuperimposer ledgeSuperimposer = new LedgeSuperimposer();
-        (ledgeCollMap, ledgeGroupMap, holeGroupMap, tileGroupMap) = ledgeBuilder.BuildLedges(perimData, tileMaps);
-        (ledgeCollMap, ledgeGroupMap) = ledgeSuperimposer.SuperimposeLedges(ledgeCollMap, ledgeGroupMap, 
-                                                                            holeGroupMap, tileGroupMap, 
-                                                                            tileMaps);
+        (_ledgeCollMap, _ledgeGroupMap, _holeGroupMap, _tileGroupMap) = ledgeBuilder.BuildLedges(perimData, tileMaps);
+        (_ledgeCollMap, _ledgeGroupMap) = ledgeSuperimposer.SuperimposeLedges(_ledgeCollMap, _ledgeGroupMap,
+                                                                              _holeGroupMap, _tileGroupMap,
+                                                                              tileMaps);
     }
 
-    public EdgeCollection GetLedgeCollection(TileMap tileMap, int tileGroup, int holeGroup, 
+    public EdgeCollection GetLedgeCollection(TileMap tileMap, int tileGroup, int holeGroup,
                                              TileMap superTileMap, int ledgeGroup)
     {
-        return this.ledgeCollMap[new LedgeCollKey(tileMap, tileGroup, holeGroup, superTileMap, ledgeGroup)];
+        return this._ledgeCollMap[new LedgeCollKey(tileMap, tileGroup, holeGroup, superTileMap, ledgeGroup)];
     }
 
     public int GetMaxLedgeGroup(TileMap tileMap, int tileGroup, int holeGroup, TileMap superTileMap)
     {
-        return this.ledgeGroupMap[new LedgeGroupKey(tileMap, tileGroup, holeGroup, superTileMap)];
+        return this._ledgeGroupMap[new LedgeGroupKey(tileMap, tileGroup, holeGroup, superTileMap)];
     }
 
     public int GetMaxHoleGroup(TileMap tileMap, int tileGroup)
     {
-        return this.holeGroupMap[new HoleGroupKey(tileMap, tileGroup)];
+        return this._holeGroupMap[new HoleGroupKey(tileMap, tileGroup)];
     }
 
     public int GetMaxTileGroup(TileMap tileMap)
     {
-        return this.tileGroupMap[new TileGroupKey(tileMap)];
+        return this._tileGroupMap[new TileGroupKey(tileMap)];
     }
 
 

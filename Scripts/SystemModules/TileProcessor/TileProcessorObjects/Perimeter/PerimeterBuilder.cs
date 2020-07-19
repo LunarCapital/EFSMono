@@ -2,9 +2,10 @@ using Godot;
 using System;
 using System.Linq;
 using SCol = System.Collections.Generic;
-using GCol = Godot.Collections;
+using MCN = MainControllerNamespace;
+using AutoloadNamespace;
 
-namespace TileControllerNamespace
+namespace TileProcessorNamespace
 {
 /// <summary>
 /// A class that is dedicated to building perimeters based on tile placements.  The detailed version is in
@@ -21,8 +22,8 @@ public class PerimeterBuilder
 
     /// <summary>
     /// Builds perimeters, packs into a dictionary of tilemaps -> List of EdgeCollections, and returns.
-    /// </summary>    
-    public SCol.Dictionary<TileMap, SCol.List<EdgeCollection>> BuildPerims(TileMapList tileMaps)
+    /// </summary>
+    public SCol.Dictionary<TileMap, SCol.List<EdgeCollection>> BuildPerimeter(MCN.TileMapList tileMaps)
     {
         var tileMapToAllEdgeCollections = new SCol.Dictionary<TileMap, SCol.List<EdgeCollection>>();
 
@@ -30,7 +31,7 @@ public class PerimeterBuilder
         {
             SCol.List<TilePerim> tilePerims = this._FillTiles(tileMap);
             SCol.Dictionary<int, SCol.HashSet<int>> adjMatrix = this._InitAdjMatrix(tilePerims);
-        
+
             //recursive flood fill to find tile groups
             int maxColor = 0;
             for (int i = 0; i < tilePerims.Count; i++)
@@ -82,7 +83,7 @@ public class PerimeterBuilder
     /// | \/ |
     /// ------
     /// Above img is a tile's navpoly in isolation. The '.' is the origin and its vertices are relative to that point. This function adds the navpoly's
-    /// vertices to the 'real' coordinate of where the tile's origin should be to obtain its 'real' vertice coordinates. 
+    /// vertices to the 'real' coordinate of where the tile's origin should be to obtain its 'real' vertice coordinates.
     /// </summary>
     /// <param name="origVertices">Navpoly vertice coordinates.</param>
     /// <param name="originCoord">'Real' coordiante of tile's origin</param>
@@ -97,8 +98,7 @@ public class PerimeterBuilder
         }
         return shiftedVertices;
     }
-    
-    
+
     /// <summary>
     /// Initialialises an adjacency matrix of tiles to each other.
     /// </summary>
@@ -121,7 +121,7 @@ public class PerimeterBuilder
 
         return adjMatrix;
     }
-    
+
     /// <summary>
     /// Flood files TilePerims via DFS, coloring them, in order to find how they are grouped up.
     /// </summary>
@@ -129,7 +129,7 @@ public class PerimeterBuilder
     /// <param name="thisTile">The tile this function is currently 'looking' at (AKA coloring and checking neighbours)</param>
     /// <param name="color">Color that we paint tiles. Actually an integer.</param>
     /// <returns>The same TilePerim but with changed color. I chose not to modify the TilePerim within the func due to the immutability principle.</returns>
-    private SCol.List<TilePerim> _TileFloodFill(SCol.Dictionary<int, SCol.HashSet<int>> adjMatrix, 
+    private SCol.List<TilePerim> _TileFloodFill(SCol.Dictionary<int, SCol.HashSet<int>> adjMatrix,
                                                 SCol.List<TilePerim> tilePerims, TilePerim thisTile, int color)
     {
         var tilePerimsClone = new SCol.List<TilePerim>(tilePerims);
@@ -150,7 +150,6 @@ public class PerimeterBuilder
             examinee.color = color;
             tilePerimsClone[tilePerimsClone.FindIndex(0, x => x.id == examinee.id)] = examinee;
         }
-    
         return tilePerimsClone;
     }
 
@@ -167,33 +166,33 @@ public class PerimeterBuilder
         var allEdgeCollections = new SCol.List<EdgeCollection>();
         for (int color = 0; color < maxColor; color++)
         {
-            var perims = new SCol.List<Edge>(); //contains edges on the OUTSIDE of tile group
+            var perimeter = new SCol.List<Edge>(); //contains edges on the OUTSIDE of tile group
             var intersections = new SCol.List<Edge>(); //contains inner edges of tile group
-            
+
             foreach (TilePerim tilePerim in tilePerims.Where(x => x.color == color))
             { //only check tilePerims of matching color
                 foreach (Edge edge in tilePerim.GetEdgesArray().Where(x => this._ContainsEdge(intersections, x) == -1))
                 { //ignore intersections
-                    int identicalID = this._ContainsEdge(perims, edge);
+                    int identicalID = this._ContainsEdge(perimeter, edge);
                     if (identicalID != -1)
-                    { //perimSet already contains edge, .'. it is actually an intersection
-                        perims.RemoveAt(identicalID); 
+                    { //perimeter already contains edge, .'. it is actually an intersection
+                        perimeter.RemoveAt(identicalID);
                         intersections.Add(edge);
                     }
                     else
                     {
-                        perims.Add(edge);
+                        perimeter.Add(edge);
                     }
                 }
             }
-            allEdgeCollections.Add(new EdgeCollection(perims));
+            allEdgeCollections.Add(new EdgeCollection(perimeter));
         }
         return allEdgeCollections;
     }
 
     /// <summary>
-    /// Checks if the input collection contains the edge. Required because the Edge class is more than just Points A and B (it also 
-    /// includes the tile it originated from and tile side) but we only care about those two properties. 
+    /// Checks if the input collection contains the edge. Required because the Edge class is more than just Points A and B (it also
+    /// includes the tile it originated from and tile side) but we only care about those two properties.
     /// </summary>
     /// <param name="collection">Collection being checked for whether it contains Edge (but just the points).</param>
     /// <param name="edge">Edge being checked.</param>

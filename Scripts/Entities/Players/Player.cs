@@ -1,6 +1,8 @@
 using Godot;
 using System;
 
+namespace EntityNamespace
+{
 /// <summary>
 /// Generic player class.
 /// Considering breaking up into smaller scripts:
@@ -13,7 +15,6 @@ public class Player : Entity
 {
     public override void _Ready()
     {
-        
     }
 
     public override void _PhysicsProcess(float delta)
@@ -35,4 +36,5 @@ public class Player : Entity
         this.MoveAndSlide(motion*10);
         //TODO: ensure entity positions are rounded to prevent jitter
     }
+}
 }

@@ -2,7 +2,7 @@ using Godot;
 using System;
 using SCol = System.Collections.Generic;
 
-namespace TileControllerNamespace
+namespace MainControllerNamespace
 {
 /// <summary>
 /// A custom class designed to hold TileMaps in a world. Has three purposes:
@@ -31,12 +31,22 @@ public class TileMapList : SCol.SortedList<int, TileMap>
         }
     }
 
+    /// <summary>
+    /// Return the last TileMap in this list.
+    /// </summary>
+    /// <returns>The last TileMap in this list.</returns>
+    public TileMap Last()
+    {
+        int lastIndex = this.Count - 1;
+        return this[lastIndex];
+    }
+
     private void _CheckValidity()
     {
         int indexCheck = 0;
         foreach (int zKey in this.Keys)
         {
-            if (indexCheck != zKey) 
+            if (indexCheck != zKey)
             {
                 throw new _ZIndexMismatchException("TileMapList indices are not a sequence. Missing index: " + indexCheck);
             }
@@ -47,12 +57,19 @@ public class TileMapList : SCol.SortedList<int, TileMap>
     [Serializable]
     /// <summary>
     /// An exception to be invoked if this class's constructor attempts to initialise
-    /// a sorted list of TileMaps but 
+    /// a sorted list of TileMaps but there is a missing Z index.
     /// </summary>
     private class _ZIndexMismatchException : Exception
     {
         public _ZIndexMismatchException(string message) : base(message) {}
-    }
 
+            public _ZIndexMismatchException() : base()
+            {
+            }
+
+            public _ZIndexMismatchException(string message, Exception innerException) : base(message, innerException)
+            {
+            }
+        }
 }
 }
