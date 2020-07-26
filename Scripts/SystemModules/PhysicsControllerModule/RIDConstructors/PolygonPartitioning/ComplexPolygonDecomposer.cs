@@ -64,6 +64,10 @@ public static class ComplexPolygonDecomposer
         var bipartiteGraph = new BipartiteGraph(bipartiteNodeToChords.Keys);
         //Find Max Matching
         SCol.Dictionary<BipartiteGraphNode, BipartiteGraphNode> maxMatching = bipartiteGraph.GetMaxMatching();
+        foreach (BipartiteGraphNode leftNode in maxMatching.Keys)
+        {
+            GD.PrintS("MM matches left id: " + leftNode.id + " to right id: " + maxMatching[leftNode].id);
+        }
         //Find Excluded Left Nodes
         //Find DFS cover of Excluded Left Nodes
         //Find Max Vertex Cover (right side visited, left side unvisited of DFS cover)

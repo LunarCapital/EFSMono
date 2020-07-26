@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using Godot;
 using SCol = System.Collections.Generic;
 
 namespace EFSMono.Scripts.DataStructures.Graphs.BipartiteGraphObjects
@@ -17,7 +18,6 @@ public static class BipartiteGraphMaxMatchingFinder
     /// <returns>Dictionary that maps left -> right nodes in the MM.</returns>
     public static SCol.Dictionary<BipartiteGraphNode, BipartiteGraphNode> GetMaxMatching(this BipartiteGraph bipartiteGraph)
     {
-        var maxMatching = new SCol.Dictionary<BipartiteGraphNode, BipartiteGraphNode>();
         var networkNodesIDs = new SCol.List<int>(bipartiteGraph.nodes.Keys);
         int sourceID = networkNodesIDs.Count;
         int sinkID = sourceID + 1;
@@ -29,14 +29,32 @@ public static class BipartiteGraphMaxMatchingFinder
         var flowNetwork = new int[networkNodesIDs.Count, networkNodesIDs.Count];
         var residualNetwork = (int[,]) capacityNetwork.Clone();
 
+        for (int i = 0; i < residualNetwork.GetLength(0); i++)
+        {
+            for (int j = 0; j < residualNetwork.GetLength(0); j++)
+            {
+                GD.PrintS("initial RN i: " + i + ", j: " + j + ": " + residualNetwork[i,j]);
+                //GD.PrintS("initial FN i: " + i + ", j: " + j + ": " + flowNetwork[i,j]);
+            }
+        }
+        
         SCol.List<int> augmentingPath;
         while ((augmentingPath = _GetAugmentingPath(residualNetwork, sourceID, sinkID)).Count > 1)
         {
             flowNetwork = _UpdateFlowNetwork(augmentingPath, flowNetwork);
-            
+            residualNetwork = _UpdateResidualNetwork(capacityNetwork, flowNetwork, residualNetwork, sinkID);
+            for (int i = 0; i < residualNetwork.GetLength(0); i++)
+            {
+                for (int j = 0; j < residualNetwork.GetLength(0); j++)
+                {
+                    GD.PrintS("RN i: " + i + ", j: " + j + ": " + residualNetwork[i,j]);
+                    //GD.PrintS("FN i: " + i + ", j: " + j + ": " + flowNetwork[i,j]);
+                }
+            }
         }
         
-        return maxMatching;
+        return _ExtractMaxMatching(flowNetwork, bipartiteGraph.leftNodeIDs,
+                                   bipartiteGraph.rightNodeIDs, bipartiteGraph.nodes);
     }
 
     /// <summary>
@@ -172,15 +190,70 @@ public static class BipartiteGraphMaxMatchingFinder
                                                  int[,] residualNetwork, int sinkID)
     {
         var updatedResidualNetwork = (int[,]) residualNetwork.Clone();
+
+        for (int i = 0; i < residualNetwork.GetLength(0); i++)
+        {
+            for (int j = 0; j < residualNetwork.GetLength(0); j++)
+            {
+                GD.PrintS("method pre-RN i: " + i + ", j: " + j + ": " + updatedResidualNetwork[i,j]);
+                //GD.PrintS("initial FN i: " + i + ", j: " + j + ": " + flowNetwork[i,j]);
+            }
+        }
         for (int i = 0; i <= sinkID; i++)
         {
             for (int j = 0; j <= sinkID; j++)
             {
+                if (j == 6)
+                {
+                    GD.PrintS("pre-res " + i + "-> 6: " + updatedResidualNetwork[i, j]);
+                }
                 int residualFlow = capacityNetwork[i, j] - flowNetwork[i, j];
                 updatedResidualNetwork[i, j] = (residualFlow > 0) ? residualFlow : 0;
-            } //TODO: do i actually update the backward edges?
+                updatedResidualNetwork[j, i] = flowNetwork[i, j];
+                if (j == 6)
+                {
+                    GD.PrintS("post-res " + i + "-> 6: " + updatedResidualNetwork[i, j]);
+                }
+                GD.PrintS("checking 4 to 6: " + updatedResidualNetwork[4, 6]);
+            }
+        }
+
+        for (int i = 0; i < residualNetwork.GetLength(0); i++)
+        {
+            for (int j = 0; j < residualNetwork.GetLength(0); j++)
+            {
+                GD.PrintS("method post-RN i: " + i + ", j: " + j + ": " + updatedResidualNetwork[i, j]);
+                //GD.PrintS("initial FN i: " + i + ", j: " + j + ": " + flowNetwork[i,j]);
+            }
         }
         return updatedResidualNetwork;
+    }
+
+    /// <summary>
+    /// Extracts the max matching from the flow network.
+    /// </summary>
+    /// <param name="flowNetwork">Flow Network.</param>
+    /// <param name="leftNodeIDs">Set of left node IDs.</param>
+    /// <param name="rightNodeIDs">Set of right node IDs.</param>
+    /// <param name="bipartiteNodes">SortedList of BipartiteGraphNodes.</param>
+    /// <returns>The max matching, in the form of a dictionary that maps left to right nodes.</returns>
+    private static SCol.Dictionary<BipartiteGraphNode, BipartiteGraphNode> _ExtractMaxMatching(int[,] flowNetwork,
+                                                                                               SCol.HashSet<int> leftNodeIDs,
+                                                                                               SCol.HashSet<int> rightNodeIDs,
+                                                                                               SCol.IReadOnlyDictionary<int, BipartiteGraphNode> bipartiteNodes)
+    {
+        var maxMatching = new SCol.Dictionary<BipartiteGraphNode, BipartiteGraphNode>();
+        foreach (int leftNodeID in leftNodeIDs)
+        {
+            foreach (int rightNodeID in rightNodeIDs)
+            {
+                if (flowNetwork[leftNodeID, rightNodeID] <= 0) continue;
+                BipartiteGraphNode leftNode = bipartiteNodes[leftNodeID];
+                BipartiteGraphNode rightNode = bipartiteNodes[rightNodeID];
+                maxMatching.Add(leftNode, rightNode);
+            }
+        }
+        return maxMatching;
     }
 }
 }
