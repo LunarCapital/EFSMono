@@ -69,7 +69,15 @@ public static class ComplexPolygonDecomposer
             GD.PrintS("MM matches left id: " + leftNode.id + " to right id: " + maxMatching[leftNode].id);
         }
         //Find Excluded Left Nodes
+        SCol.List<int> excludedLeftNodeIDs = bipartiteGraph.leftNodeIDs
+            .Where(x => !maxMatching.ContainsKey(bipartiteGraph.nodes[x])).ToList();
+        foreach (int id in excludedLeftNodeIDs)
+        {
+            GD.PrintS("excluded left node: " + id);
+        }
+
         //Find DFS cover of Excluded Left Nodes
+        
         //Find Max Vertex Cover (right side visited, left side unvisited of DFS cover)
         //Find Max Independent Set (conjugate of MVC)
         //Extract Chordless Polygons by: (separate class)

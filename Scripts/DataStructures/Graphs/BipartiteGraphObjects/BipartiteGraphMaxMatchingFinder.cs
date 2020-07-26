@@ -29,30 +29,12 @@ public static class BipartiteGraphMaxMatchingFinder
         var flowNetwork = new int[networkNodesIDs.Count, networkNodesIDs.Count];
         var residualNetwork = (int[,]) capacityNetwork.Clone();
 
-        for (int i = 0; i < residualNetwork.GetLength(0); i++)
-        {
-            for (int j = 0; j < residualNetwork.GetLength(0); j++)
-            {
-                GD.PrintS("initial RN i: " + i + ", j: " + j + ": " + residualNetwork[i,j]);
-                //GD.PrintS("initial FN i: " + i + ", j: " + j + ": " + flowNetwork[i,j]);
-            }
-        }
-        
         SCol.List<int> augmentingPath;
         while ((augmentingPath = _GetAugmentingPath(residualNetwork, sourceID, sinkID)).Count > 1)
         {
             flowNetwork = _UpdateFlowNetwork(augmentingPath, flowNetwork);
             residualNetwork = _UpdateResidualNetwork(capacityNetwork, flowNetwork, residualNetwork, sinkID);
-            for (int i = 0; i < residualNetwork.GetLength(0); i++)
-            {
-                for (int j = 0; j < residualNetwork.GetLength(0); j++)
-                {
-                    GD.PrintS("RN i: " + i + ", j: " + j + ": " + residualNetwork[i,j]);
-                    //GD.PrintS("FN i: " + i + ", j: " + j + ": " + flowNetwork[i,j]);
-                }
-            }
         }
-        
         return _ExtractMaxMatching(flowNetwork, bipartiteGraph.leftNodeIDs,
                                    bipartiteGraph.rightNodeIDs, bipartiteGraph.nodes);
     }
@@ -190,40 +172,13 @@ public static class BipartiteGraphMaxMatchingFinder
                                                  int[,] residualNetwork, int sinkID)
     {
         var updatedResidualNetwork = (int[,]) residualNetwork.Clone();
-
-        for (int i = 0; i < residualNetwork.GetLength(0); i++)
-        {
-            for (int j = 0; j < residualNetwork.GetLength(0); j++)
-            {
-                GD.PrintS("method pre-RN i: " + i + ", j: " + j + ": " + updatedResidualNetwork[i,j]);
-                //GD.PrintS("initial FN i: " + i + ", j: " + j + ": " + flowNetwork[i,j]);
-            }
-        }
         for (int i = 0; i <= sinkID; i++)
         {
             for (int j = 0; j <= sinkID; j++)
             {
-                if (j == 6)
-                {
-                    GD.PrintS("pre-res " + i + "-> 6: " + updatedResidualNetwork[i, j]);
-                }
                 int residualFlow = capacityNetwork[i, j] - flowNetwork[i, j];
                 updatedResidualNetwork[i, j] = (residualFlow > 0) ? residualFlow : 0;
-                updatedResidualNetwork[j, i] = flowNetwork[i, j];
-                if (j == 6)
-                {
-                    GD.PrintS("post-res " + i + "-> 6: " + updatedResidualNetwork[i, j]);
-                }
-                GD.PrintS("checking 4 to 6: " + updatedResidualNetwork[4, 6]);
-            }
-        }
-
-        for (int i = 0; i < residualNetwork.GetLength(0); i++)
-        {
-            for (int j = 0; j < residualNetwork.GetLength(0); j++)
-            {
-                GD.PrintS("method post-RN i: " + i + ", j: " + j + ": " + updatedResidualNetwork[i, j]);
-                //GD.PrintS("initial FN i: " + i + ", j: " + j + ": " + flowNetwork[i,j]);
+                updatedResidualNetwork[j, i] = (residualFlow > 0) ? flowNetwork[i, j] : updatedResidualNetwork[j, i];
             }
         }
         return updatedResidualNetwork;
