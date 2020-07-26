@@ -1,6 +1,0 @@
-D:\Utilities\Godot\Projects\EFSMono\.mono\temp\bin\Debug\EFSMono.dll
-D:\Utilities\Godot\Projects\EFSMono\.mono\temp\bin\Debug\EFSMono.pdb
-D:\Utilities\Godot\Projects\EFSMono\.mono\temp\obj\Debug\EFSMono.csprojAssemblyReference.cache
-D:\Utilities\Godot\Projects\EFSMono\.mono\temp\obj\Debug\EFSMono.csproj.CoreCompileInputs.cache
-D:\Utilities\Godot\Projects\EFSMono\.mono\temp\obj\Debug\EFSMono.dll
-D:\Utilities\Godot\Projects\EFSMono\.mono\temp\obj\Debug\EFSMono.pdb

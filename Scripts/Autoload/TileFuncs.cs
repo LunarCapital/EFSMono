@@ -1,10 +1,10 @@
 using Godot;
-using System;
+// ReSharper disable ClassNeverInstantiated.Global
 
-namespace AutoloadNamespace
+namespace EFSMono.Scripts.Autoload
 {
 /// <summary>
-/// Autoloaded script.
+/// Auto loaded script.
 /// Contains easily accessible tile-related functions.
 /// </summary>
 public class TileFuncs : Node
@@ -26,7 +26,7 @@ public class TileFuncs : Node
     }
 
     /// <summary>
-    /// Given some current tile coordinates and a direction, calcluate and return the coordinates
+    /// Given some current tile coordinates and a direction, calculate and return the coordinates
     /// for a tile that would theoretically be adjacent to the input tile in the input direction.
     /// Directions follow Globals.SIDE.
     /// If the direction input is invalid, returns the input coordinates.
@@ -41,19 +41,17 @@ public class TileFuncs : Node
 
         switch (direction)
         {
-            case (int)Globals.SIDE.NORTH:
+            case (int)Globals.Side.NORTH:
                 adjTile = currentTile + Globals.NORTH_VEC2;
                 break;
-            case (int)Globals.SIDE.EAST:
+            case (int)Globals.Side.EAST:
                 adjTile = currentTile + Globals.EAST_VEC2;
                 break;
-            case (int)Globals.SIDE.SOUTH:
+            case (int)Globals.Side.SOUTH:
                 adjTile = currentTile + Globals.SOUTH_VEC2;
                 break;
-            case (int)Globals.SIDE.WEST:
+            case (int)Globals.Side.WEST:
                 adjTile = currentTile + Globals.WEST_VEC2;
-                break;
-            default:
                 break;
         }
         return adjTile;

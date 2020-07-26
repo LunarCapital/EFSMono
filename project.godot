@@ -22,7 +22,10 @@ config/icon="res://icon.png"
 [autoload]
 
 Globals="*res://Scripts/Autoload/Globals.cs"
+SortFuncs="*res://Scripts/Autoload/SortFuncs.cs"
 TileFuncs="*res://Scripts/Autoload/TileFuncs.cs"
+AxisFuncs="*res://Scripts/Autoload/AxisFuncs.cs"
+GeometryFuncs="*res://Scripts/Autoload/GeometryFuncs.cs"
 
 [display]
 

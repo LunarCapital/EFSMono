@@ -1,8 +1,8 @@
-using Godot;
 using System;
+using Godot;
 using SCol = System.Collections.Generic;
 
-namespace MainControllerNamespace
+namespace EFSMono.Scripts.SystemModules.GeneralUtilities
 {
 /// <summary>
 /// A custom class designed to hold TileMaps in a world. Has three purposes:
@@ -25,7 +25,7 @@ public class TileMapList : SCol.SortedList<int, TileMap>
         {
             this._CheckValidity();
         }
-        catch (_ZIndexMismatchException e)
+        catch (ZIndexMismatchException e)
         {
             GD.PrintS("Exception msg: " + e.Message);
         }
@@ -48,28 +48,28 @@ public class TileMapList : SCol.SortedList<int, TileMap>
         {
             if (indexCheck != zKey)
             {
-                throw new _ZIndexMismatchException("TileMapList indices are not a sequence. Missing index: " + indexCheck);
+                throw new ZIndexMismatchException("TileMapList indices are not a sequence. Missing index: " + indexCheck);
             }
             indexCheck++;
         }
     }
 
     [Serializable]
-    /// <summary>
-    /// An exception to be invoked if this class's constructor attempts to initialise
-    /// a sorted list of TileMaps but there is a missing Z index.
-    /// </summary>
-    private class _ZIndexMismatchException : Exception
+    private class ZIndexMismatchException : Exception
     {
-        public _ZIndexMismatchException(string message) : base(message) {}
+        /// <summary>
+        /// An exception to be invoked if this class's constructor attempts to initialise
+        /// a sorted list of TileMaps but there is a missing Z index.
+        /// </summary>
+        public ZIndexMismatchException(string message) : base(message) {}
 
-            public _ZIndexMismatchException() : base()
+            public ZIndexMismatchException()
             {
             }
 
-            public _ZIndexMismatchException(string message, Exception innerException) : base(message, innerException)
+            public ZIndexMismatchException(string message, Exception innerException) : base(message, innerException)
             {
             }
-        }
+    }
 }
 }

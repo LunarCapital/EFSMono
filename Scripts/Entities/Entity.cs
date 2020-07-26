@@ -1,7 +1,6 @@
 using Godot;
-using System;
 
-namespace EntityNamespace
+namespace EFSMono.Scripts.Entities
 {
 public class Entity : KinematicBody2D
 {

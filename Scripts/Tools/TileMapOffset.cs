@@ -1,21 +1,21 @@
+using EFSMono.Scripts.Autoload;
 using Godot;
-using System;
 
-namespace ToolNamespace
+namespace EFSMono.Scripts.Tools
 {
 [Tool]
 public class TileMapOffset : TileMap {
     public override void _Ready() {
-        NavigationPolygon navPoly = new NavigationPolygon();
-        var offset = new Vector2(0, -32);
+        var navPoly = new NavigationPolygon();
+        var offset = new Vector2(0, - Globals.TILE_HEIGHT);
 
-        foreach (int tile_id in this.TileSet.GetTilesIds()) {
-            this.TileSet.TileSetTextureOffset(tile_id, offset);
+        foreach (int tileID in this.TileSet.GetTilesIds()) {
+            this.TileSet.TileSetTextureOffset(tileID, offset);
 
-            if (tile_id == 0) {
-                navPoly = this.TileSet.TileGetNavigationPolygon(tile_id);
+            if (tileID == 0) {
+                navPoly = this.TileSet.TileGetNavigationPolygon(tileID);
             } else {
-                this.TileSet.TileSetNavigationPolygon(tile_id, navPoly);
+                this.TileSet.TileSetNavigationPolygon(tileID, navPoly);
             }
         }
 
