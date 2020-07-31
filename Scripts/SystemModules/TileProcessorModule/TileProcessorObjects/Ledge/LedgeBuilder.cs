@@ -37,13 +37,13 @@ public static class LedgeBuilder
     /// <param name="perimData">Info on all perimeters.</param>
     /// <param name="tileMaps">List of all tilemaps.</param>
     /// <returns>Four dictionaries matching LedgeData's four properties which map EdgeCollections containing ledge data to multiple fields.</returns>
-    public static (SCol.Dictionary<LedgeCollKey, EdgeCollection> ledgeCollMap,
+    public static (SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
                    SCol.Dictionary<LedgeGroupKey, int> ledgeGroupMap,
                    SCol.Dictionary<HoleGroupKey, int> holeGroupMap,
                    SCol.Dictionary<TileGroupKey, int> tileGroupMap) BuildLedges(this TileMapList tileMaps,
                                                                                 PerimeterData perimData)
     {
-        var ledgeCollMap = new SCol.Dictionary<LedgeCollKey, EdgeCollection>();
+        var ledgeCollMap = new SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>>();
         var ledgeGroupMap = new SCol.Dictionary<LedgeGroupKey, int>();
         var holeGroupMap = new SCol.Dictionary<HoleGroupKey, int>();
         var tileGroupMap = new SCol.Dictionary<TileGroupKey, int>();
@@ -58,7 +58,7 @@ public static class LedgeBuilder
                 holeGroupMap.Add(new HoleGroupKey(tileMap, tileGroup), maxHoleGroups);
                 for (int holeGroup = 0; holeGroup < maxHoleGroups; holeGroup++)
                 {
-                    EdgeCollection thisPerim = perimData.GetEdgeCollection(tileMap, tileGroup, holeGroup);
+                    EdgeCollection<TileEdge> thisPerim = perimData.GetEdgeCollection(tileMap, tileGroup, holeGroup);
                     (ledgeCollMap, ledgeGroupMap) = _FillLedges(ledgeCollMap, ledgeGroupMap, tileMaps,
                                                                      tileMap, thisPerim, tileGroup, holeGroup);
                 }
@@ -81,20 +81,20 @@ public static class LedgeBuilder
     /// <param name="tileGroup">TileGroup that ledges are being filled for.</param>
     /// <param name="holeGroup">HoleGroup that ledges are being filled for.</param>
     /// <returns>Two dictionaries matching the two input dicts but with the new ledge data added to each.</returns>
-    private static (SCol.Dictionary<LedgeCollKey, EdgeCollection> ledgeCollMap,
+    private static (SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
              SCol.Dictionary<LedgeGroupKey, int> ledgeGroupMap) _FillLedges(
-                                                SCol.IDictionary<LedgeCollKey, EdgeCollection> ledgeCollMap,
+                                                SCol.IDictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
                                                 SCol.IDictionary<LedgeGroupKey, int> ledgeGroupMap,
                                                 TileMapList tileMaps,
                                                 TileMap tileMap,
-                                                EdgeCollection perimeter,
+                                                EdgeCollection<TileEdge> perimeter,
                                                 int tileGroup,
                                                 int holeGroup)
     {
-        var ledgeCollMapClone = new SCol.Dictionary<LedgeCollKey, EdgeCollection>(ledgeCollMap);
+        var ledgeCollMapClone = new SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>>(ledgeCollMap);
         var ledgeGroupMapClone = new SCol.Dictionary<LedgeGroupKey, int>(ledgeGroupMap);
 
-        EdgeCollection ledges = new EdgeCollection();
+        var ledges = new EdgeCollection<TileEdge>();
         int ledgeGroup = 0;
 
         foreach (TileEdge edge in perimeter)
@@ -110,16 +110,16 @@ public static class LedgeBuilder
             else if (ledges.Count > 0)
             { //gap in ledges, finish current ledge group and move to next one
                 ledgeCollMapClone.Add(new LedgeCollKey(tileMap, tileGroup, holeGroup, tileMap, ledgeGroup),
-                                        new EdgeCollection(ledges.GetOrderedCollection()));
+                                        new EdgeCollection<TileEdge>(ledges.GetOrderedCollection()));
                 ledgeGroup++;
-                ledges = new EdgeCollection();
+                ledges = new EdgeCollection<TileEdge>();
             }
         }
 
         if (ledges.Count > 0)
         { //store ledges if not done already
             ledgeCollMapClone.Add(new LedgeCollKey(tileMap, tileGroup, holeGroup, tileMap, ledgeGroup),
-                new EdgeCollection(ledges.GetOrderedCollection()));
+                new EdgeCollection<TileEdge>(ledges.GetOrderedCollection()));
             ledgeGroup++;
         }
 
@@ -138,7 +138,7 @@ public static class LedgeBuilder
     /// <param name="edge">Edge that is being examined.</param>
     /// <param name="currentLayer">Current layer that edge is on.</param>
     /// <returns>Coords of the highest adjacent tile, or current tile if no adjacent tile exists.</returns>
-    private static Vector2 _GetAdjacentLowerTile(TileMapList tileMaps, Edge edge, int currentLayer)
+    private static Vector2 _GetAdjacentLowerTile(TileMapList tileMaps, TileEdge edge, int currentLayer)
     {
         Vector2 currentTile = edge.tileCoords;
         Vector2 adjTile = currentTile;
@@ -163,7 +163,7 @@ public static class LedgeBuilder
     /// <param name="currentLayer">Layer of edge.</param>
     /// <param name="observedLayer">Layer of the tile that this func calcs coords for.</param>
     /// <returns>Coordinates of some adjacent tile on the observed layer, even if it does not exist.</returns>
-    private static Vector2 _GetAdjLowerCoords(Edge edge, int currentLayer, int observedLayer)
+    private static Vector2 _GetAdjLowerCoords(TileEdge edge, int currentLayer, int observedLayer)
     {
         Vector2 currentTile = edge.tileCoords;
         int side = edge.tileSide;

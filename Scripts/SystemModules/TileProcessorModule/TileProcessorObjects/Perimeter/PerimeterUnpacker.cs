@@ -24,24 +24,24 @@ public static class PerimeterUnpacker
     /// tile group from every tile map.</param>
     /// <param name="tileMaps">List of all TileMaps.</param>
     /// <returns>The three dictionary properties of PerimeterData.</returns>
-    public static (SCol.Dictionary<EdgeCollKey, EdgeCollection> edgeCollMap,
+    public static (SCol.Dictionary<EdgeCollKey, EdgeCollection<TileEdge>> edgeCollMap,
                    SCol.Dictionary<HoleGroupKey, int> holeGroupMap,
                    SCol.Dictionary<TileGroupKey, int> tileGroupMap) UnpackEdgeCols(this TileMapList tileMaps,
-                                                                                   SCol.Dictionary<TileMap, SCol.List<EdgeCollection>> tileMapToAllEdgeColls)
+                                                                                   SCol.Dictionary<TileMap, SCol.List<EdgeCollection<TileEdge>>> tileMapToAllEdgeColls)
     {
-        var edgeCollMap = new SCol.Dictionary<EdgeCollKey, EdgeCollection>();
+        var edgeCollMap = new SCol.Dictionary<EdgeCollKey, EdgeCollection<TileEdge>>();
         var holeGroupMap = new SCol.Dictionary<HoleGroupKey, int>();
         var tileGroupMap = new SCol.Dictionary<TileGroupKey, int>();
 
         foreach (TileMap tileMap in tileMaps.Values)
         {
-            SCol.List<EdgeCollection> allEdgeColls = tileMapToAllEdgeColls[tileMap];
+            SCol.List<EdgeCollection<TileEdge>> allEdgeColls = tileMapToAllEdgeColls[tileMap];
             tileGroupMap.Add(new TileGroupKey(tileMap), allEdgeColls.Count);
 
             for (int tileGroup = 0; tileGroup < allEdgeColls.Count; tileGroup++)
             {
-                EdgeCollection thisGroupsColl = allEdgeColls[tileGroup];
-                SCol.List<EdgeCollection> splitEdgeColl = _SplitEdgeColl(thisGroupsColl); //should hold perim in index 0 and holes in 1-inf
+                EdgeCollection<TileEdge> thisGroupsColl = allEdgeColls[tileGroup];
+                SCol.List<EdgeCollection<TileEdge>> splitEdgeColl = _SplitEdgeColl(thisGroupsColl); //should hold perim in index 0 and holes in 1-inf
                 holeGroupMap.Add(new HoleGroupKey(tileMap, tileGroup), splitEdgeColl.Count);
 
                 for (int holeGroup = 0; holeGroup < splitEdgeColl.Count; holeGroup++)
@@ -64,14 +64,14 @@ public static class PerimeterUnpacker
     /// </summary>
     /// <param name="originalEdgeColl">Collection of all edges in a TileMap, regardless of whether they are connected or not</param>
     /// <returns>A list of Edge Collections, all ordered, and all split into connected groups</returns>
-    private static SCol.List<EdgeCollection> _SplitEdgeColl(EdgeCollection originalEdgeColl)
+    private static SCol.List<EdgeCollection<TileEdge>> _SplitEdgeColl(EdgeCollection<TileEdge> originalEdgeColl)
     {
-        var splitEdgeColl = new SCol.List<EdgeCollection>();
-        EdgeCollection cloneEdgeColl = originalEdgeColl.Clone();
+        var splitEdgeColl = new SCol.List<EdgeCollection<TileEdge>>();
+        EdgeCollection<TileEdge> cloneEdgeColl = originalEdgeColl.Clone();
 
         while (cloneEdgeColl.Count > 0)
         {
-            EdgeCollection orderedEdgeColl = cloneEdgeColl.GetOrderedCollection();
+            EdgeCollection<TileEdge> orderedEdgeColl = cloneEdgeColl.GetOrderedCollection();
             splitEdgeColl.Add(orderedEdgeColl);
             cloneEdgeColl = cloneEdgeColl.GetExcludedCollection(orderedEdgeColl);
         }

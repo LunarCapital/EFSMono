@@ -8,13 +8,13 @@ namespace EFSMono.Scripts.DataStructures.Geometry
 /// The purpose of this class is to be used for segment simplification for PhysicsControllers
 /// floor partitioning.
 /// </summary>
-public class PolyEdge : IEdge
+public class PolyEdge : Edge
 {
     public Vector2 a { get; }
     public Vector2 b { get; }
     public bool isChecked { get; set; }
 
-    public PolyEdge(Vector2 a, Vector2 b)
+    public PolyEdge(Vector2 a, Vector2 b) : base(a, b)
     {
         this.a = a;
         this.b = b;
@@ -27,16 +27,6 @@ public class PolyEdge : IEdge
         return hashCode;
     }
 
-    IEdge IEdge.GetReverseEdge()
-    {
-        return this.GetReverseEdge();
-    }
-
-    public bool IsIdentical(IEdge other)
-    {
-        return this.IsIdentical((PolyEdge) other);
-    }
-
     public PolyEdge Clone()
     {
         return (PolyEdge)this.MemberwiseClone();
@@ -46,23 +36,12 @@ public class PolyEdge : IEdge
     /// Gets the reversed edge of this edge, which is just a and b swapped
     /// </summary>
     /// <returns>An edge with the same properties as this one but with a and b swapped</returns>
-    private PolyEdge GetReverseEdge()
+    private new PolyEdge GetReverseEdge()
     {
         return new PolyEdge(this.b, this.a)
         {
             isChecked = this.isChecked
         };
-    }
-
-    /// <summary>
-    /// Checks if this edge is identical to some comparison edge
-    /// </summary>
-    /// <param name="comparisonEdge"></param>
-    /// <returns>True if identical, false if not</returns>
-    private bool IsIdentical(PolyEdge comparisonEdge)
-    {
-        return (this.a == comparisonEdge.a && this.b == comparisonEdge.b) ||
-               (this.a == comparisonEdge.b && this.b == comparisonEdge.a);
     }
 }
 }

@@ -10,7 +10,7 @@ namespace EFSMono.Scripts.DataStructures.Geometry
 /// 'smoothing' them (merging collinear edges), etc.
 /// Thank god I can extend lists in C#!
 /// </summary>
-public class EdgeCollection<T> : SCol.List<T> where T : IEdge
+public class EdgeCollection<T> : SCol.List<T> where T : Edge
 {
 
     //CONSTRUCTORS

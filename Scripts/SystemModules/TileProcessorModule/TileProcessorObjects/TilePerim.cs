@@ -69,9 +69,9 @@ public class TilePerim
     /// Put this tile's four edges in a block array and return it.
     /// </summary>
     /// <returns>Block array containing this tile's four edges</returns>
-    public Edge[] GetEdgesArray()
+    public TileEdge[] GetEdgesArray()
     {
-        var edges = new Edge[4];
+        var edges = new TileEdge[4];
         edges[(int)Globals.Side.NORTH] = this.north;
         edges[(int)Globals.Side.EAST] = this.east;
         edges[(int)Globals.Side.SOUTH] = this.south;
@@ -81,11 +81,11 @@ public class TilePerim
 
     public bool IsTileAdjacent(TilePerim comparisonTile)
     {
-        Edge[] thisEdges = this.GetEdgesArray();
-        Edge[] comparisonEdges = comparisonTile.GetEdgesArray();
-        foreach (Edge thisEdge in thisEdges)
+        TileEdge[] thisEdges = this.GetEdgesArray();
+        TileEdge[] comparisonEdges = comparisonTile.GetEdgesArray();
+        foreach (TileEdge thisEdge in thisEdges)
         {
-            foreach (Edge comparisonEdge in comparisonEdges)
+            foreach (TileEdge comparisonEdge in comparisonEdges)
             {
                 if (thisEdge.IsIdentical(comparisonEdge))
                 {

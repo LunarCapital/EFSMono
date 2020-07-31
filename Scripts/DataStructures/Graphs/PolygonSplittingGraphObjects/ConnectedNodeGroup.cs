@@ -102,12 +102,14 @@ public class ConnectedNodeGroup : IComparable
     /// </summary>
     private void _SimplifyOuterPerim()
     {
+        var edgeCollection = new EdgeCollection<PolyEdge>();
         for (int i = 0; i < this.outerPerim.Count; i++)
         {
             var thisCoord = new Vector2(this.outerPerim[i].x, this.outerPerim[i].y);
             var nextCoord = new Vector2(this.outerPerim[(i+1)% this.outerPerim.Count].x, this.outerPerim[(i+1)% this.outerPerim.Count].y);
             if (thisCoord == nextCoord) continue;
-            
+            var polyEdge = new PolyEdge(thisCoord, nextCoord);
+            edgeCollection.Add(polyEdge);
         }
     }
     

@@ -23,9 +23,9 @@ public static class PerimeterBuilder
     /// <summary>
     /// Builds perimeters, packs into a dictionary of tilemaps -> List of EdgeCollections, and returns.
     /// </summary>
-    public static SCol.Dictionary<TileMap, SCol.List<EdgeCollection>> BuildPerimeter(this TileMapList tileMaps)
+    public static SCol.Dictionary<TileMap, SCol.List<EdgeCollection<TileEdge>>> BuildPerimeter(this TileMapList tileMaps)
     {
-        var tileMapToAllEdgeCollections = new SCol.Dictionary<TileMap, SCol.List<EdgeCollection>>();
+        var tileMapToAllEdgeCollections = new SCol.Dictionary<TileMap, SCol.List<EdgeCollection<TileEdge>>>();
 
         foreach (TileMap tileMap in tileMaps.Values)
         {
@@ -39,7 +39,7 @@ public static class PerimeterBuilder
                 tilePerims = _TileFloodFill(adjMatrix, tilePerims, tilePerim, maxColor);
                 maxColor++; //i could put this on the prev line 
             }
-            SCol.List<EdgeCollection> allEdgeCollections = _FillEdgeCollections(tilePerims, maxColor);
+            SCol.List<EdgeCollection<TileEdge>> allEdgeCollections = _FillEdgeCollections(tilePerims, maxColor);
             tileMapToAllEdgeCollections.Add(tileMap, allEdgeCollections);
         }
         return tileMapToAllEdgeCollections;
@@ -158,17 +158,17 @@ public static class PerimeterBuilder
     /// <param name="tilePerims">List of tile perims.</param>
     /// <param name="maxColor">Max color that a tile can be.</param>
     /// <returns>A list of EdgeCollections, each containing EDGES from tiles of the same color (group).</returns>
-    private static SCol.List<EdgeCollection> _FillEdgeCollections(SCol.IReadOnlyCollection<TilePerim> tilePerims, int maxColor)
+    private static SCol.List<EdgeCollection<TileEdge>> _FillEdgeCollections(SCol.IReadOnlyCollection<TilePerim> tilePerims, int maxColor)
     {
-        var allEdgeCollections = new SCol.List<EdgeCollection>();
+        var allEdgeCollections = new SCol.List<EdgeCollection<TileEdge>>();
         for (int color = 0; color < maxColor; color++)
         {
-            var perimeter = new SCol.List<Edge>(); //contains edges on the OUTSIDE of tile group
-            var intersections = new SCol.List<Edge>(); //contains inner edges of tile group
+            var perimeter = new SCol.List<TileEdge>(); //contains edges on the OUTSIDE of tile group
+            var intersections = new SCol.List<TileEdge>(); //contains inner edges of tile group
 
             foreach (TilePerim tilePerim in tilePerims.Where(x => x.color == color))
             { //only check tilePerims of matching color
-                foreach (Edge edge in tilePerim.GetEdgesArray().Where(x => _ContainsEdge(intersections, x) == -1))
+                foreach (TileEdge edge in tilePerim.GetEdgesArray().Where(x => _ContainsEdge(intersections, x) == -1))
                 { //ignore intersections
                     int identicalID = _ContainsEdge(perimeter, edge);
                     if (identicalID != -1)
@@ -182,7 +182,7 @@ public static class PerimeterBuilder
                     }
                 }
             }
-            allEdgeCollections.Add(new EdgeCollection(perimeter));
+            allEdgeCollections.Add(new EdgeCollection<TileEdge>(perimeter));
         }
         return allEdgeCollections;
     }
@@ -194,11 +194,11 @@ public static class PerimeterBuilder
     /// <param name="collection">Collection being checked for whether it contains Edge (but just the points).</param>
     /// <param name="edge">Edge being checked.</param>
     /// <returns>Index of identical edge in collection with matching points to the input edge, or -1 if no match found.</returns>
-    private static int _ContainsEdge(SCol.IReadOnlyList<Edge> collection, Edge edge)
+    private static int _ContainsEdge(SCol.IReadOnlyList<TileEdge> collection, TileEdge edge)
     {
         for (int i = 0; i < collection.Count; i++)
         {
-            Edge examinee = collection[i];
+            TileEdge examinee = collection[i];
             if (examinee.IsIdentical(edge))
             {
                 return i;

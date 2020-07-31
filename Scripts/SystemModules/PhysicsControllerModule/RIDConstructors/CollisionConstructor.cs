@@ -108,7 +108,7 @@ public static class CollisionConstructor
             int maxHoleGroups = perimData.GetMaxHoleGroup(nextTileMap, tileGroup);
             for (int holeGroup = 0; holeGroup < maxHoleGroups; holeGroup++)
             {
-                EdgeCollection wallColl = perimData.GetEdgeCollection(nextTileMap, tileGroup, holeGroup);
+                EdgeCollection<TileEdge> wallColl = perimData.GetEdgeCollection(nextTileMap, tileGroup, holeGroup);
                 SCol.IEnumerable<SegmentShape2D> thisWallSegments = _ShiftSegmentsDown(_EdgeCollToSegments(wallColl));
                 allSegments.AddRange(thisWallSegments);
             }
@@ -140,7 +140,7 @@ public static class CollisionConstructor
                     int maxLedgeGroups = ledgeData.GetMaxLedgeGroup(baseTileMap, tileGroup, holeGroup, thisTileMap);
                     for (int ledgeGroup = 0; ledgeGroup < maxLedgeGroups; ledgeGroup++)
                     {
-                        EdgeCollection ledgeColl = ledgeData.GetLedgeCollection(baseTileMap, tileGroup, holeGroup, thisTileMap, ledgeGroup);
+                        EdgeCollection<TileEdge> ledgeColl = ledgeData.GetLedgeCollection(baseTileMap, tileGroup, holeGroup, thisTileMap, ledgeGroup);
                         SCol.IEnumerable<SegmentShape2D> thisLedgeSegments = _EdgeCollToSegments(ledgeColl);
                         allSegments.AddRange(thisLedgeSegments);
                     }
@@ -156,7 +156,7 @@ public static class CollisionConstructor
     /// </summary>
     /// <param name="edgeColl">EdgeCollection to be converted to a list of segments</param>
     /// <returns>A list of segments that make up the edges in the input EdgeCollection</returns>
-    private static SCol.IEnumerable<SegmentShape2D> _EdgeCollToSegments(EdgeCollection edgeColl)
+    private static SCol.IEnumerable<SegmentShape2D> _EdgeCollToSegments(EdgeCollection<TileEdge> edgeColl)
     {
         var segments = new SCol.List<SegmentShape2D>();
         SCol.List<Vector2> simplifiedPolygon = edgeColl.GetSimplifiedPerim();

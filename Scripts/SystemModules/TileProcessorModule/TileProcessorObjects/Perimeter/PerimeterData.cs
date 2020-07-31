@@ -25,17 +25,17 @@ namespace EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects
 /// </summary>
 public class PerimeterData
 {
-    private readonly SCol.Dictionary<EdgeCollKey, EdgeCollection> _edgeCollMap;
+    private readonly SCol.Dictionary<EdgeCollKey, EdgeCollection<TileEdge>> _edgeCollMap;
     private readonly SCol.Dictionary<HoleGroupKey, int> _holeGroupMap;
     private readonly SCol.Dictionary<TileGroupKey, int> _tileGroupMap;
 
     public PerimeterData(TileMapList tileMaps)
     {
-        SCol.Dictionary<TileMap, SCol.List<EdgeCollection>> tileMapToAllEdgeCols = tileMaps.BuildPerimeter();
+        SCol.Dictionary<TileMap, SCol.List<EdgeCollection<TileEdge>>> tileMapToAllEdgeCols = tileMaps.BuildPerimeter();
         (this._edgeCollMap, this._holeGroupMap, this._tileGroupMap) = tileMaps.UnpackEdgeCols(tileMapToAllEdgeCols);
     }
 
-    public EdgeCollection GetEdgeCollection(TileMap tileMap, int tileGroup, int holeGroup)
+    public EdgeCollection<TileEdge> GetEdgeCollection(TileMap tileMap, int tileGroup, int holeGroup)
     {
         return this._edgeCollMap[new EdgeCollKey(tileMap, tileGroup, holeGroup)];
     }

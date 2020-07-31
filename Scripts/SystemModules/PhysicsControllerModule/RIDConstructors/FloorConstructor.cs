@@ -95,7 +95,7 @@ public static class FloorConstructor
                 var allPerims = new SCol.List<Vector2>[maxHoleGroups];
                 for (int holeGroup = 0; holeGroup < maxHoleGroups; holeGroup++)
                 { //put all perims (outer and hole) from one tile group into a single array of lists (gods help me) for partitioning
-                    EdgeCollection edgeColl = perimData.GetEdgeCollection(tileMap, tileGroup, holeGroup);
+                    EdgeCollection<TileEdge> edgeColl = perimData.GetEdgeCollection(tileMap, tileGroup, holeGroup);
                     allPerims[holeGroup] = new SCol.List<Vector2>(edgeColl.GetSimplifiedPerim());
                 }
                 SCol.List<ConvexPolygonShape2D> partitionedRectangles = _PartitionPolygonToRectangles(allPerims);

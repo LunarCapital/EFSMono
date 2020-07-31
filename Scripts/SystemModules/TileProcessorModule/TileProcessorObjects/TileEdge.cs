@@ -9,7 +9,7 @@ namespace EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects
 /// The purpose of this class is to be used as a helper for the TileController in building
 /// the Area2D and colliders for each TileMap
 /// </summary>
-public class TileEdge : IEdge
+public class TileEdge : Edge
 {
     public Vector2 a { get; }
     public Vector2 b { get; }
@@ -17,7 +17,7 @@ public class TileEdge : IEdge
     public Vector2 tileCoords { get; } //coords of the tile that the edge came from
     public int tileSide { get; }
 
-    public TileEdge(Vector2 a, Vector2 b, Vector2 tileCoords, int tileSide)
+    public TileEdge(Vector2 a, Vector2 b, Vector2 tileCoords, int tileSide) : base(a, b)
     {
         this.a = a;
         this.b = b;
@@ -32,21 +32,11 @@ public class TileEdge : IEdge
         return hashCode;
     }
 
-    IEdge IEdge.GetReverseEdge()
-    {
-        return this.GetReverseEdge();
-    }
-
-    public bool IsIdentical(IEdge other)
-    {
-        return this.IsIdentical((TileEdge) other);
-    }
-
     /// <summary>
     /// Gets the reversed edge of this edge, which is just a and b swapped
     /// </summary>
     /// <returns>An edge with the same properties as this one but with a and b swapped</returns>
-    private TileEdge GetReverseEdge()
+    private new TileEdge GetReverseEdge()
     {
         return new TileEdge(this.b, this.a, this.tileCoords, this.tileSide)
         {

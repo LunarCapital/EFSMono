@@ -46,7 +46,7 @@ namespace EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects
 /// </summary>
 public class LedgeData
 {
-    private readonly SCol.Dictionary<LedgeCollKey, EdgeCollection> _ledgeCollMap;
+    private readonly SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>> _ledgeCollMap;
     private readonly SCol.Dictionary<LedgeGroupKey, int> _ledgeGroupMap;
     private readonly SCol.Dictionary<HoleGroupKey, int> _holeGroupMap;
     private readonly SCol.Dictionary<TileGroupKey, int> _tileGroupMap;
@@ -58,8 +58,8 @@ public class LedgeData
                                                                                this._holeGroupMap, this._tileGroupMap);
     }
 
-    public EdgeCollection GetLedgeCollection(TileMap tileMap, int tileGroup, int holeGroup,
-                                             TileMap superTileMap, int ledgeGroup)
+    public EdgeCollection<TileEdge> GetLedgeCollection(TileMap tileMap, int tileGroup, int holeGroup,
+                                                       TileMap superTileMap, int ledgeGroup)
     {
         return this._ledgeCollMap[new LedgeCollKey(tileMap, tileGroup, holeGroup, superTileMap, ledgeGroup)];
     }
