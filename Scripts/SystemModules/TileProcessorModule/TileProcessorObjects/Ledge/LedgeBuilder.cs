@@ -1,4 +1,5 @@
 using EFSMono.Scripts.Autoload;
+using EFSMono.Scripts.DataStructures.Geometry;
 using EFSMono.Scripts.SystemModules.GeneralUtilities;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.DataKeys;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Perimeter;
@@ -96,7 +97,7 @@ public static class LedgeBuilder
         EdgeCollection ledges = new EdgeCollection();
         int ledgeGroup = 0;
 
-        foreach (Edge edge in perimeter)
+        foreach (TileEdge edge in perimeter)
         {
             Vector2 currentTile = edge.tileCoords;
             int currentLayer = tileMap.ZIndex;

@@ -1,4 +1,5 @@
 using EFSMono.Scripts.Autoload;
+using EFSMono.Scripts.DataStructures.Geometry;
 using EFSMono.Scripts.SystemModules.GeneralUtilities;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.DataKeys;
 using Godot;

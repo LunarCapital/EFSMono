@@ -1,5 +1,6 @@
 using System.Linq;
 using EFSMono.Scripts.Autoload;
+using EFSMono.Scripts.DataStructures.Geometry;
 using EFSMono.Scripts.SystemModules.GeneralUtilities;
 using Godot;
 using SCol = System.Collections.Generic;

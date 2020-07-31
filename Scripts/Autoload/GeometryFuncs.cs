@@ -113,5 +113,126 @@ public static class GeometryFuncs
 
         return uA >= 0 && uA <= 1 && uB >= 0 && uB <= 1;
     }
+
+    /// <summary>
+    /// Calculates the area of an irregular polygon.
+    /// If the input uses the closed array convention (AKA perim[first] == perim[last]) this function still works.
+    /// </summary>
+    /// <param name="perimVertices">Array of Vector2s describing the vertices of a polygon.</param>
+    /// <returns>Area of input polygon.</returns>
+    public static float GetAreaOfPolygon(Vector2[] perimVertices)
+    {
+        Vector2[] uniqueVertices = SimplifyVectorArray(perimVertices);
+
+        float area = 0;
+        for (int i = 0; i < uniqueVertices.Length; i++)
+        {
+            Vector2 thisVertex = uniqueVertices[i];
+            Vector2 nextVertex = uniqueVertices[(i + 1) % uniqueVertices.Length];
+            area += nextVertex.x * thisVertex.y - nextVertex.y * thisVertex.x;
+        }
+        area = Mathf.Abs(area / 2);
+        return area;
+    }
+
+    /// <summary>
+    /// Checks if <param>innerPoly</param> is in <param>outerPoly</param> by:
+    ///     1. Checking that none of the polygons lines intersect with each other
+    ///     2. Checking if any point of <param>innerPoly</param> is inside <param>outerPoly</param>
+    /// If NO LINES INTERSECT and ANY POINT of <param>innerPoly</param> is inside <param>outerPoly</param> then
+    /// <param>innerPoly</param> is inside <param>outerPoly</param>.
+    /// 
+    /// If <param>innerPoly</param> has a greater or equal area than <param>outerPoly</param> then this method returns
+    /// false.
+    /// </summary>
+    /// <param name="innerPoly">Inner polygon.</param>
+    /// <param name="outerPoly">Outer polygon.</param>
+    /// <returns>True if <param>innerPoly</param> is inside <param>outerPoly</param>, false otherwise.</returns>
+    public static bool IsPolyInPoly(Vector2[] innerPoly, Vector2[] outerPoly)
+    {
+        if (GetAreaOfPolygon(innerPoly) >= GetAreaOfPolygon(outerPoly)) return false;
+
+        for (int i = 0; i < innerPoly.Length; i++)
+        {
+            for (int j = 0; j < outerPoly.Length; j++)
+            {
+                Vector2 innerVertexA = innerPoly[i];
+                Vector2 innerVertexB = innerPoly[(i + 1) % innerPoly.Length];
+                Vector2 outerVertexA = outerPoly[j];
+                Vector2 outerVertexB = outerPoly[(j + 1) % outerPoly.Length];
+                if (DoSegmentsIntersect(innerVertexA, innerVertexB, outerVertexA, outerVertexB))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return IsPointInPoly(innerPoly.First(), outerPoly);
+    }
+
+    /// <summary>
+    /// Checks if the <param>point</param> is inside the <param>poly</param> using the ray-crossing method.
+    /// Assumes simple polygon, AKA no holes.
+    /// </summary>
+    /// <param name="point">Point being checked.</param>
+    /// <param name="poly">Representation of a polygon as an array of Vector2s in CCW order.</param>
+    /// <returns>True if the point is inside the polygon, false otherwise.</returns>
+    public static bool IsPointInPoly(Vector2 point, Vector2[] poly)
+    {
+        float lowestY = poly.Aggregate((v1, v2) => v1.y < v2.y ? v1 : v2).y;
+
+        int numOfCrossings = 0;
+        for (int i = 0; i < poly.Length; i++)
+        {
+            Vector2 pointA = poly[i];
+            Vector2 pointB = poly[(i + 1) % poly.Length];
+            if (DoSegmentsIntersect(point, new Vector2(point.x, lowestY - 1), pointA, pointB))
+            {
+                numOfCrossings++;
+            }
+        }
+        return numOfCrossings % 2 != 0;
+    }
+
+    /// <summary>
+    /// Checks if the input polygons are identical, even if they are out of order or one is CW and the other is CCW, etc.
+    /// Assumes that the polygon's edges do not intersect itself.
+    /// </summary>
+    /// <param name="polyA"></param>
+    /// <param name="polyB"></param>
+    /// <returns>True if identical, false otherwise.</returns>
+    public static bool ArePolysIdentical(Vector2[] polyA, Vector2[] polyB)
+    {
+        if (polyA.Length != polyB.Length) return false;
+        var setA = new SCol.HashSet<Vector2>(polyA);
+        var setB = new SCol.HashSet<Vector2>(polyB);
+        setA.ExceptWith(setB);
+        return setA.Count == 0;
+    }
+
+    /// <summary>
+    /// If the input <param>perim</param> follows the closed loop convention where perim[first] == perim[last],
+    /// returns a simplified version of the array that removes the duplicate Vector2.
+    /// </summary>
+    /// <param name="perim">Vector2 array describing a perimeter.</param>
+    /// <returns><param>perim</param> IFF it does not follow closed loop convention, or <param>perim</param> without its
+    /// last index if it does.</returns>
+    public static Vector2[] SimplifyVectorArray(Vector2[] perim)
+    {
+        Vector2[] uniqueVertices;
+        if (perim.First() == perim.Last())
+        { //input follows closed array convention so we need to shave the last one off
+            uniqueVertices = new Vector2[perim.Length - 1];
+            for (int i = 0; i < uniqueVertices.Length; i++)
+            {
+                uniqueVertices[i] = perim[i];
+            }
+        }
+        else
+        { //input does not follow closed array convention
+            uniqueVertices = perim;
+        }
+        return uniqueVertices;
+    }
 }
 }

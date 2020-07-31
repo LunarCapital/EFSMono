@@ -1,6 +1,8 @@
 ﻿using System.Linq;
 using EFSMono.Scripts.Autoload;
+using EFSMono.Scripts.DataStructures.Geometry;
 using EFSMono.Scripts.DataStructures.Graphs.BipartiteGraphObjects;
+using EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects;
 using EFSMono.Scripts.SystemModules.PhysicsControllerModule.RIDConstructors.PolygonPartitioning.PolygonObjects;
 using Godot;
 using SCol = System.Collections.Generic;
@@ -62,28 +64,17 @@ public static class ComplexPolygonDecomposer
             GD.PrintS("Chord is from: " + chord.a + " to " + chord.b);
         }
         var bipartiteGraph = new BipartiteGraph(bipartiteNodeToChords.Keys);
-        //Find Max Matching
-        SCol.Dictionary<BipartiteGraphNode, BipartiteGraphNode> maxMatching = bipartiteGraph.GetMaxMatching();
-        foreach (BipartiteGraphNode leftNode in maxMatching.Keys)
-        {
-            GD.PrintS("MM matches left id: " + leftNode.id + " to right id: " + maxMatching[leftNode].id);
-        }
-        //Find Excluded Left Nodes
-        SCol.List<int> excludedLeftNodeIDs = bipartiteGraph.leftNodeIDs
-            .Where(x => !maxMatching.ContainsKey(bipartiteGraph.nodes[x])).ToList();
-        foreach (int id in excludedLeftNodeIDs)
-        {
-            GD.PrintS("excluded left node: " + id);
-        }
-
-        //Find DFS cover of Excluded Left Nodes
         
-        //Find Max Vertex Cover (right side visited, left side unvisited of DFS cover)
         //Find Max Independent Set (conjugate of MVC)
+        SCol.HashSet<BipartiteGraphNode> maxIndependentSet = bipartiteGraph.GetMaxIndependentSet();
+        SCol.List<PolygonSplittingGraphNode> polygonSplittingNodes = _ConstructPolygonSplittingNodes(allIsoPerims, bipartiteNodeToChords, maxIndependentSet);
+        
         //Extract Chordless Polygons by: (separate class)
         //         2.6 Extracting these chord-less polygons by:
         // 
         //             2.6.1 Constructing a graph out of the 'drawing', with vertices as nodes and lines/chords as edges.
+        PolygonSplittingGraph polygonSplittingGraph = new PolygonSplittingGraph(polygonSplittingNodes, allIsoPerims);
+        SCol.List<RectangularPolygon> minCycles = polygonSplittingGraph.GetMinCycles();
         //             2.6.2 Finding 'Node Covers' by running DFS on the graph until all nodes are visited.
         //             2.6.3 Constructing a 'tree' of Node Covers where a parent cover contains child covers, and covers that
         //                   do not contain each other are siblings.
@@ -101,7 +92,7 @@ public static class ComplexPolygonDecomposer
         //                   Tree of Node Covers.
         //             2.6.7 Denoting each Minimum Cycle as being a chord-less polygon IF it is not a hole, and denoting the
         //                   Outer Perimeter of any Node Covers contained within a Minimum Cycle as its hole(s) (it's still
-        //                   a chord-less polygon, just with a hole).
+        //                   a chord-less polygon, just with a hole(s)).
         return new SCol.List<SCol.List<Vector2>>(); //TODO remove this placeholder
     }
 
@@ -200,6 +191,94 @@ public static class ComplexPolygonDecomposer
         }
         return bipartiteNodeToChords;
     }
-    
+
+    /// <summary>
+    /// Given the polygon perimeters and its drawn chords, construct nodes out of each vertex and lists of each of their
+    /// connected edges into a list of the class ChordSplittingGraphNode which will be used to split the polygon into
+    /// chordless polygons.
+    /// </summary>
+    /// <param name="allIsoPerims">Array of lists describing the polygon perimeters.</param>
+    /// <param name="bipartiteNodeToChords">Map of all BipartiteNodes to Chords.</param>
+    /// <param name="maxIndependentSet">MIS of BipartiteNodes which contains WHICH chords we should 'draw'.</param>
+    /// <returns>A list of ChordSplittingGraphNodes that describe each vertex of the polygon (with chords included).</returns>
+    private static SCol.List<PolygonSplittingGraphNode> _ConstructPolygonSplittingNodes(SCol.List<Vector2>[] allIsoPerims,
+                                                                                    SCol.Dictionary<BipartiteGraphNode, Chord> bipartiteNodeToChords,
+                                                                                    SCol.HashSet<BipartiteGraphNode> maxIndependentSet)
+    {
+        var polygonSplittingNodes = new SCol.List<PolygonSplittingGraphNode>();
+        var vertexToID = new SCol.Dictionary<Vector2, int>();
+        int nodeID = 0;
+        foreach (SCol.List<Vector2> perim in allIsoPerims)
+        { //to store IDs for vertices because we need to know their connections before we can init them as graph nodes
+            for (int i = 0; i < perim.Count - 1; i++)
+            {
+                Vector2 vertex = perim[i];
+                vertexToID.Add(vertex, nodeID);
+                nodeID++;
+            }
+        }
+
+        SCol.SortedList<int, SCol.List<int>> nodeConnectionsByID = _FindVertexConnections(allIsoPerims, bipartiteNodeToChords, maxIndependentSet, vertexToID);
+        foreach (Vector2 vertex in vertexToID.Keys)
+        {
+            int vertexID = vertexToID[vertex];
+            var chordSplittingNode = new PolygonSplittingGraphNode(vertexID, nodeConnectionsByID[vertexID], vertex.x, vertex.y);
+            polygonSplittingNodes.Add(chordSplittingNode);
+        }
+        return polygonSplittingNodes;
+    }
+
+    /// <summary>
+    /// Given the polygon perimeters and drawn chords, constructs lists for each vertex containing the ID of every vertex
+    /// that they are connected to via a drawn line (AKA edge or chord).
+    /// </summary>
+    /// <param name="allIsoPerims">Array of lists describing the polygon perimeters.</param>
+    /// <param name="bipartiteNodeToChords">Map of all BipartiteNodes to Chords.</param>
+    /// <param name="maxIndependentSet">MIS of BipartiteNodes which contains WHICH chords we should 'draw'.</param>
+    /// <param name="vertexToID">Dictionary mapping vertices to an ID.</param>
+    /// <returns>Lists of connected IDs for every vertex.</returns>
+    private static SCol.SortedList<int, SCol.List<int>> _FindVertexConnections(SCol.List<Vector2>[] allIsoPerims,
+                                                                               SCol.Dictionary<BipartiteGraphNode, Chord> bipartiteNodeToChords,
+                                                                               SCol.HashSet<BipartiteGraphNode> maxIndependentSet,
+                                                                               SCol.Dictionary<Vector2, int> vertexToID)
+    {
+        var nodeConnectionsByID = new SCol.SortedList<int, SCol.List<int>>();
+        foreach (SCol.List<Vector2> perim in allIsoPerims)
+        {
+            for (int i = 0; i < perim.Count - 1; i++)
+            { //Add polygon edges first
+                var thisNodesConnections = new SCol.List<int>();
+                Vector2 vertex = perim[i];
+                Vector2 prevVertex;
+                Vector2 nextVertex;
+                if (i != 0)
+                {
+                    prevVertex = perim[i - 1];
+                    nextVertex = perim[i + 1];
+                }
+                else
+                {
+                    prevVertex = perim[perim.Count - 2];
+                    nextVertex = perim[1];
+                }
+                thisNodesConnections.Add(vertexToID[prevVertex]);
+                thisNodesConnections.Add(vertexToID[nextVertex]);
+                int vertexID = vertexToID[vertex];
+                nodeConnectionsByID.Add(vertexID, thisNodesConnections);
+            }
+        }
+
+        foreach (BipartiteGraphNode bipartiteNode in maxIndependentSet)
+        { //add chords to connected nodes
+            Chord chord = bipartiteNodeToChords[bipartiteNode];
+            Vector2 vertexA = chord.a;
+            Vector2 vertexB = chord.b;
+            int idA = vertexToID[vertexA];
+            int idB = vertexToID[vertexB];
+            nodeConnectionsByID[idA].Add(idB);
+            nodeConnectionsByID[idB].Add(idA);
+        }
+        return nodeConnectionsByID;
+    }
 }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects;
 using Godot;
 using SCol = System.Collections.Generic;
 
@@ -47,17 +48,15 @@ public abstract class GenericGraph<T> where T : GenericGraphNode
         while (stack.Count > 0)
         {
             T node = stack.Pop();
-            for (int i = 0; i < this.adjMatrix.Length; i++)
+            for (int neighbourID = 0; neighbourID < this.adjMatrix.GetLength(1); neighbourID++)
             {
-                int neighbourID = this.adjMatrix[node.id, i];
-                if (!visited.Contains(this.nodes[neighbourID]))
+                if (!visited.Contains(this.nodes[neighbourID]) && adjMatrix[node.id, neighbourID] > 0)
                 {
                     visited.Add(this.nodes[neighbourID]);
                     stack.Push(this.nodes[neighbourID]);
                 }
             }
         }
-        
         return visited.ToList();
     }
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using EFSMono.Scripts.Autoload;
+using EFSMono.Scripts.DataStructures.Geometry;
 using Godot;
 
 namespace EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects
@@ -20,10 +21,10 @@ public class TilePerim
     /// </summary>
     private enum CCWSide {WEST = 1, SOUTH = 2, EAST = 3, NORTH = 0};
 
-    private Edge north { get; set;}
-    private Edge east { get; set;}
-    private Edge south { get; set;}
-    private Edge west { get; set;}
+    private TileEdge north { get; set;}
+    private TileEdge east { get; set;}
+    private TileEdge south { get; set;}
+    private TileEdge west { get; set;}
     public int color { get; set; }
     public int id { get; }
 
@@ -114,16 +115,16 @@ public class TilePerim
             switch ((rawIndex + 1)%vertices.Count)
             {
                 case (int)CCWSide.WEST:
-                    this.west = new Edge(vertexA, vertexB, cell, (int)Globals.Side.WEST);
+                    this.west = new TileEdge(vertexA, vertexB, cell, (int)Globals.Side.WEST);
                     break;
                 case (int)CCWSide.SOUTH:
-                    this.south = new Edge(vertexA, vertexB, cell, (int)Globals.Side.SOUTH);
+                    this.south = new TileEdge(vertexA, vertexB, cell, (int)Globals.Side.SOUTH);
                     break;
                 case (int)CCWSide.EAST:
-                    this.east = new Edge(vertexA, vertexB, cell, (int)Globals.Side.EAST);
+                    this.east = new TileEdge(vertexA, vertexB, cell, (int)Globals.Side.EAST);
                     break;
                 case (int)CCWSide.NORTH:
-                    this.north = new Edge(vertexA, vertexB, cell, (int)Globals.Side.NORTH);
+                    this.north = new TileEdge(vertexA, vertexB, cell, (int)Globals.Side.NORTH);
                     break;
                 default:
                     invalidSide = true;
