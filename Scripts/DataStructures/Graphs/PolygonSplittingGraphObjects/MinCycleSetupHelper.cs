@@ -7,10 +7,10 @@ using System.Collections.Generic;
 namespace EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects
 {
 /// <summary>
-/// Helper class for PolygonSplittingGraph that contains methods related to manipulation/storage of ConnectedNodeGroups
-/// so that the main class doesn't have 1 billion lines.
+/// Helper class for PolygonSplittingGraph that contains methods related to setup of MinCycle extraction, AKA
+/// manipulation/storage of ConnectedNodeGroups so that the main class doesn't have 1 billion lines.
 /// </summary>
-public static class PolygonSplittingGraphGroupHelper
+public static class MinCycleSetupHelper
 {
     
     /// <summary>
@@ -131,56 +131,6 @@ public static class PolygonSplittingGraphGroupHelper
         
         return removedEdges;
     }
-    
-    /// <summary>
-    /// Counts the number of valid edges a vertex has, given that:
-    ///     1. It is within a ConnectedNodeGroup and can only connect to other vertices within that group
-    ///     2. Edges that have been removed (and are in <param>removedIDs</param>) are not counted 
-    /// </summary>
-    /// <param name="connectedGroup">Group that the vertex is in.</param>
-    /// <param name="node">The node (vertex) in question.</param>
-    /// <param name="removedIDs">Set of IDs of vertices that this vertex cannot travel to, AKA removed edges.</param>
-    /// <param name="adjMatrix"></param>
-    /// <param name="nodes"></param>
-    /// <returns>Number of valid edges the input vertex can travel to.</returns>
-    public static int GetNumOfNodesValidEdges(ConnectedNodeGroup connectedGroup, PolygonSplittingGraphNode node, 
-                        HashSet<int> removedIDs, int[,] adjMatrix, SortedList<int, PolygonSplittingGraphNode> nodes)
-    {
-        int count = 0;
-        for (int i = 0; i < adjMatrix.GetLength(1); i++)
-        {
-            if (adjMatrix[node.id, i] == 1 && connectedGroup.nodes.ContainsKey(i) && !removedIDs.Contains(i))
-            {
-                count++;
-                GD.PrintS("found conn at from " + node.id + " to node with id: " + i + " at coord: " + connectedGroup.nodes[i].x + ", " + connectedGroup.nodes[i].y);
-            }
-        }
-        return count;
-    }
 
-
-    public static Dictionary<PolygonSplittingGraphNode, HashSet<int>> AddNewBridgesToRemovedEdges(
-        ConnectedNodeGroup connectedGroup, int[,] adjMatrix,
-        Dictionary<PolygonSplittingGraphNode, HashSet<int>> removedEdges)
-    {
-        var removedEdgesIDs = new Dictionary<int, HashSet<int>>();
-        foreach (PolygonSplittingGraphNode node in removedEdges.Keys)
-        {
-            removedEdgesIDs[node.id] = removedEdges[node];
-        }
-        
-        Dictionary<int, HashSet<int>> bridges = BridgeFinder.GetBridges(connectedGroup.nodes, adjMatrix, removedEdgesIDs);
-        var updatedRemovedEdges = new Dictionary<PolygonSplittingGraphNode, HashSet<int>>(removedEdges);
-        foreach (int bridgeID in bridges.Keys)
-        {
-            if (!connectedGroup.nodes.ContainsKey(bridgeID)) continue;
-            foreach (int neighbourID in bridges[bridgeID])
-            {
-                updatedRemovedEdges[connectedGroup.nodes[bridgeID]].Add(neighbourID);
-                GD.PrintS("removed bridge during cycle with IDs " + bridgeID + " to " + neighbourID + " with coords: " + connectedGroup.nodes[bridgeID].x + ", " + connectedGroup.nodes[bridgeID].y + ", " + connectedGroup.nodes[neighbourID].x + ", " + connectedGroup.nodes[neighbourID].y);
-            }
-        }
-        return updatedRemovedEdges;
-    }
 }
 }
