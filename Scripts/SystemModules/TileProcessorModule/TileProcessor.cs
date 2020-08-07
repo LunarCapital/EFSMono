@@ -2,7 +2,7 @@ using EFSMono.Scripts.SystemModules.GeneralUtilities;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Ledge;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Perimeter;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.SystemModules.TileProcessorModule
 {
@@ -45,7 +45,7 @@ namespace EFSMono.Scripts.SystemModules.TileProcessorModule
 public static class TileProcessor
 {
     public static (TileMapList tileMaps, PerimeterData perimeterData,
-            LedgeData ledgeData) BuildTileNodes(SCol.IEnumerable<Node> worldChildren)
+            LedgeData ledgeData) BuildTileNodes(IEnumerable<Node> worldChildren)
     {
         TileMapList tileMaps = _FillTilemapsArray(worldChildren);
         var perimData = new PerimeterData(tileMaps);
@@ -58,9 +58,9 @@ public static class TileProcessor
     /// </summary>
     /// <param name="worldChildren">The world node's children in an array</param>
     /// <returns>An array of the world node's TileMap children</returns>
-    private static TileMapList _FillTilemapsArray(SCol.IEnumerable<Node> worldChildren)
+    private static TileMapList _FillTilemapsArray(IEnumerable<Node> worldChildren)
     {
-        var tileMaps = new SCol.List<TileMap>();
+        var tileMaps = new List<TileMap>();
         foreach (Node child in worldChildren)
         {
             if (child is TileMap tileMap)

@@ -6,7 +6,7 @@ using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Led
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Perimeter;
 using TinyMessenger;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 // ReSharper disable UnusedType.Global
 
@@ -27,7 +27,7 @@ namespace EFSMono.Scripts.SystemModules
     private void _LoadWorld(EntityTracker entityTracker, PhysicsControllerModule.PhysicsController physicsControl)
     {
         var worldNode = (Node2D)this.GetNode(Globals.WORLD_NODE_NAME);
-        var children = new SCol.List<Node>(worldNode.GetChildren().OfType<Node>());
+        var children = new List<Node>(worldNode.GetChildren().OfType<Node>());
         (TileMapList tileMaps, PerimeterData perimData, LedgeData ledgeData) = TileProcessorModule.TileProcessor.BuildTileNodes(children);
 
         entityTracker.LoadWorld(tileMaps);

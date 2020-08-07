@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 // ReSharper disable ClassNeverInstantiated.Global
 
 namespace EFSMono.Scripts.Autoload
@@ -13,23 +13,21 @@ namespace EFSMono.Scripts.Autoload
 public static class GeometryFuncs
 {
     /// <summary>
-    /// Checks if the orientations for two lines are the same.
-    /// Two lines with opposite orientations count as having the 'same' orientation.
+    /// Checks if two line segments are parallel, inclusive of segments in opposite directions.
     /// </summary>
     /// <param name="line1A">Line 1's point A.</param>
     /// <param name="line1B">Line 1's point B.</param>
     /// <param name="line2A">Line 2's point A</param>
     /// <param name="line2B">Line 2's point B.</param>
-    /// <returns>True if line orientation is the same.</returns>
-    public static bool AreOrientationsIdentical(Vector2 line1A, Vector2 line1B, 
-                                                Vector2 line2A, Vector2 line2B)
+    /// <returns>True if parallel, false otherwise.</returns>
+    public static bool AreSegmentsParallel(Vector2 line1A, Vector2 line1B,
+                                           Vector2 line2A, Vector2 line2B)
     {
-        float m1 = (line1B.y - line1A.y)/(line1B.x - line1A.x);
-        float m2 = (line2B.y - line2A.y)/(line2B.x - line2A.x);
-
-        return Math.Abs(m1) == Math.Abs(m2);
+        float gradient1 = Mathf.Abs((line1B.y - line1A.y) / (line1B.x - line1A.x));
+        float gradient2 = Mathf.Abs((line2B.y - line2A.y) / (line2B.x - line2A.x));
+        return (gradient1 == gradient2);
     }
-
+    
     /// <summary>
     /// Checks if two line segments are collinear.  Credit to:
     /// https://math.stackexchange.com/questions/1102258/how-to-determine-if-some-line-segments-are-collinear
@@ -43,7 +41,7 @@ public static class GeometryFuncs
     public static bool AreSegmentsCollinear(Vector2 line1A, Vector2 line1B,
                                             Vector2 line2A, Vector2 line2B)
     {
-        if (!AreOrientationsIdentical(line1A, line1B, line2A, line2B)) return false;
+        if (!AreSegmentsParallel(line1A, line1B, line2A, line2B)) return false;
         float x1 = line1A.x;
         float y1 = line1A.y;
         float x2 = line1B.x;
@@ -115,6 +113,17 @@ public static class GeometryFuncs
     }
 
     /// <summary>
+    /// Checks if a polygon is ordered in CCW order using the shoelace formula.
+    /// Assumes that the polygon's points are in order.
+    /// </summary>
+    /// <param name="perim"></param>
+    /// <returns>True if CCW, false otherwise.</returns>
+    public static bool IsPolygonCCW(Vector2[] perimVertices)
+    {
+        return _GetRawAreaOfPolygon(perimVertices) > 0;
+    }
+    
+    /// <summary>
     /// Calculates the area of an irregular polygon.
     /// If the input uses the closed array convention (AKA perim[first] == perim[last]) this function still works.
     /// </summary>
@@ -122,8 +131,18 @@ public static class GeometryFuncs
     /// <returns>Area of input polygon.</returns>
     public static float GetAreaOfPolygon(Vector2[] perimVertices)
     {
-        Vector2[] uniqueVertices = SimplifyVectorArray(perimVertices);
+        float area = Mathf.Abs(_GetRawAreaOfPolygon(perimVertices));
+        return area;
+    }
 
+    /// <summary>
+    /// Gets area of polygon with shoelace formula but with the sign intact.
+    /// </summary>
+    /// <param name="perimVertices"></param>
+    /// <returns>Area as a float, even if negative.</returns>
+    private static float _GetRawAreaOfPolygon(Vector2[] perimVertices)
+    {
+        Vector2[] uniqueVertices = SimplifyVectorArray(perimVertices);
         float area = 0;
         for (int i = 0; i < uniqueVertices.Length; i++)
         {
@@ -131,10 +150,9 @@ public static class GeometryFuncs
             Vector2 nextVertex = uniqueVertices[(i + 1) % uniqueVertices.Length];
             area += nextVertex.x * thisVertex.y - nextVertex.y * thisVertex.x;
         }
-        area = Mathf.Abs(area / 2);
-        return area;
+        return area/2;
     }
-
+    
     /// <summary>
     /// Checks if <param>innerPoly</param> is in <param>outerPoly</param> by:
     ///     1. Checking that none of the polygons lines intersect with each other
@@ -150,7 +168,8 @@ public static class GeometryFuncs
     /// <returns>True if <param>innerPoly</param> is inside <param>outerPoly</param>, false otherwise.</returns>
     public static bool IsPolyInPoly(Vector2[] innerPoly, Vector2[] outerPoly)
     {
-        if (GetAreaOfPolygon(innerPoly) >= GetAreaOfPolygon(outerPoly)) return false;
+        if (GetAreaOfPolygon(innerPoly) >= GetAreaOfPolygon(outerPoly) ||
+            ArePolysIdentical(innerPoly, outerPoly)) return false;
 
         for (int i = 0; i < innerPoly.Length; i++)
         {
@@ -179,21 +198,73 @@ public static class GeometryFuncs
     /// <returns>True if the point is inside the polygon, false otherwise.</returns>
     public static bool IsPointInPoly(Vector2 point, Vector2[] poly)
     {
-        float lowestY = poly.Aggregate((v1, v2) => v1.y < v2.y ? v1 : v2).y;
+        /*float lowestY = poly.Aggregate((v1, v2) => v1.y < v2.y ? v1 : v2).y;
 
         int numOfCrossings = 0;
         for (int i = 0; i < poly.Length; i++)
         {
             Vector2 pointA = poly[i];
             Vector2 pointB = poly[(i + 1) % poly.Length];
-            if (DoSegmentsIntersect(point, new Vector2(point.x, lowestY - 1), pointA, pointB))
+            if (DoSegmentsIntersect(point, new Vector2(point.x, lowestY - 1), pointA, pointB) ||
+                DoSegmentsOverlap(point, new Vector2(point.x, lowestY - 1), pointA, pointB))
             {
                 numOfCrossings++;
             }
         }
-        return numOfCrossings % 2 != 0;
+        return numOfCrossings % 2 != 0;*/
+        return WindingNumOfPointInPoly(point, poly) != 0;
     }
 
+    /// <summary>
+    /// Calculates the winding number of a point in a polygon using the method outlined here:
+    /// http://geomalgorithms.com/a03-_inclusion.html#wn_PnPoly()
+    /// That I also completely do not understand, by the way.
+    /// </summary>
+    /// <param name="point"></param>
+    /// <param name="poly">Some polygon represented by an array of Vector2s, its vertices.  FOLLOWS LOOP CONVENTION, so
+    /// absolutely necessary to ensure that poly.first == poly.last.</param>
+    /// <returns>Winding number of <param>poly</param> around <param>point</param></returns>
+    private static int WindingNumOfPointInPoly(Vector2 point, Vector2[] poly)
+    {
+        bool debugSwitch = (point == new Vector2(160, 64));
+        int windingNum = 0;
+        for (int i = 0; i < poly.Length - 1; i++)
+        {
+            Vector2 thisVertex = poly[i];
+            Vector2 nextVertex = poly[i + 1];
+            if (thisVertex.y <= point.y)
+            {
+                if (nextVertex.y > point.y && IsLeft(thisVertex, nextVertex, point) > 0)
+                {
+                    if (debugSwitch) GD.PrintS("rule 1");
+                    windingNum++;
+                }
+            }
+            else
+            {
+                if (nextVertex.y <= point.y && IsLeft(thisVertex, nextVertex, point) < 0)
+                {
+                    if (debugSwitch) GD.PrintS("rule 2");
+                    windingNum--;
+                }
+            }
+        }
+        return windingNum;
+    }
+
+    /// <summary>
+    /// Also from http://geomalgorithms.com/a03-_inclusion.html#wn_PnPoly(), checks if some point P2 is left/on/right
+    /// of an infinite line that passes through p0 and p1.
+    /// </summary>
+    /// <param name="p0"></param>
+    /// <param name="p1"></param>
+    /// <param name="p2"></param>
+    /// <returns> more than 0 if left, ==0 if on, less than 0 if right.</returns>
+    private static float IsLeft(Vector2 p0, Vector2 p1, Vector2 p2)
+    {
+        return (p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y);
+    }
+    
     /// <summary>
     /// Checks if the input polygons are identical, even if they are out of order or one is CW and the other is CCW, etc.
     /// Assumes that the polygon's edges do not intersect itself.
@@ -204,8 +275,8 @@ public static class GeometryFuncs
     public static bool ArePolysIdentical(Vector2[] polyA, Vector2[] polyB)
     {
         if (polyA.Length != polyB.Length) return false;
-        var setA = new SCol.HashSet<Vector2>(polyA);
-        var setB = new SCol.HashSet<Vector2>(polyB);
+        var setA = new HashSet<Vector2>(polyA);
+        var setB = new HashSet<Vector2>(polyB);
         setA.ExceptWith(setB);
         return setA.Count == 0;
     }
@@ -233,6 +304,37 @@ public static class GeometryFuncs
             uniqueVertices = perim;
         }
         return uniqueVertices;
+    }
+    
+    /// <summary>
+    /// Gets the coord in an input array with the minimum X and minimum Y coords (top-left coord with graphics canvas).
+    /// This vertex is ALWAYS convex IFF perimeter is the outer perimeter.  
+    /// </summary>
+    /// <param name="perimeter"></param>
+    /// <returns>Index of coordinate, or -1 if input is empty.</returns>
+    public static int GetMinXMinYCoord(IReadOnlyList<Vector2> perimeter)
+    {
+        if (perimeter.Count == 0) return -1;
+        Vector2 startCoord = perimeter.First();
+        int startID = 0;
+        for (int i = 0; i < perimeter.Count; i++)
+        {
+            Vector2 vertex = perimeter[i];
+            if (vertex.x < startCoord.x)
+            {
+                startCoord = vertex;
+                startID = i;
+            }
+            else if (vertex.x == startCoord.x)
+            {
+                if (vertex.y < startCoord.y)
+                {
+                    startCoord = vertex;
+                    startID = i;
+                }
+            }
+        }
+        return startID;
     }
 }
 }

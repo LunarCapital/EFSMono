@@ -3,7 +3,7 @@ using EFSMono.Scripts.DataStructures.Geometry;
 using EFSMono.Scripts.SystemModules.GeneralUtilities;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.DataKeys;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Ledge
 {
@@ -63,16 +63,16 @@ public static class LedgeSuperimposer
     /// <param name="tileGroupMap"></param>
     /// <param name="tileMaps"></param>
     /// <returns></returns>
-    public static (SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
-                   SCol.Dictionary<LedgeGroupKey, int> ledgeGroupMap) SuperimposeLedges(
+    public static (Dictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
+                   Dictionary<LedgeGroupKey, int> ledgeGroupMap) SuperimposeLedges(
                                                 this TileMapList tileMaps,
-                                                SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
-                                                SCol.Dictionary<LedgeGroupKey, int> ledgeGroupMap,
-                                                SCol.Dictionary<HoleGroupKey, int> holeGroupMap,
-                                                SCol.Dictionary<TileGroupKey, int> tileGroupMap)
+                                                Dictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
+                                                Dictionary<LedgeGroupKey, int> ledgeGroupMap,
+                                                Dictionary<HoleGroupKey, int> holeGroupMap,
+                                                Dictionary<TileGroupKey, int> tileGroupMap)
     {
-        var ledgeCollMapClone = new SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>>(ledgeCollMap);
-        var ledgeGroupMapClone = new SCol.Dictionary<LedgeGroupKey, int>(ledgeGroupMap);
+        var ledgeCollMapClone = new Dictionary<LedgeCollKey, EdgeCollection<TileEdge>>(ledgeCollMap);
+        var ledgeGroupMapClone = new Dictionary<LedgeGroupKey, int>(ledgeGroupMap);
 
         foreach (TileMap baseTileMap in tileMaps.Values)
         {
@@ -111,18 +111,17 @@ public static class LedgeSuperimposer
     /// <param name="tileGroup"></param>
     /// <param name="holeGroup"></param>
     /// <returns></returns>
-    private static (SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
-            SCol.Dictionary<LedgeGroupKey, int> ledgeGroupMap) _SuperimposeHoleGroup(
-                                                SCol.IDictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
-                                                SCol.IDictionary<LedgeGroupKey, int> ledgeGroupMap,
-                                                TileMap baseTileMap,
-                                                TileMap superTileMap,
-                                                TileMap preTileMap,
-                                                int tileGroup,
-                                                int holeGroup)
+    private static (Dictionary<LedgeCollKey, EdgeCollection<TileEdge>>, Dictionary<LedgeGroupKey, int>) _SuperimposeHoleGroup(
+        IDictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
+        IDictionary<LedgeGroupKey, int> ledgeGroupMap,
+        TileMap baseTileMap,
+        TileMap superTileMap,
+        TileMap preTileMap,
+        int tileGroup,
+        int holeGroup)
     {
-        var ledgeCollMapClone = new SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>>(ledgeCollMap);
-        var ledgeGroupMapClone = new SCol.Dictionary<LedgeGroupKey, int>(ledgeGroupMap);
+        var ledgeCollMapClone = new Dictionary<LedgeCollKey, EdgeCollection<TileEdge>>(ledgeCollMap);
+        var ledgeGroupMapClone = new Dictionary<LedgeGroupKey, int>(ledgeGroupMap);
 
         int superLedgeGroup = 0; //Once superimposed, # of ledge groups CAN change
         int maxLedgeGroups = ledgeGroupMap[new LedgeGroupKey(baseTileMap, tileGroup, holeGroup, preTileMap)];
@@ -134,7 +133,7 @@ public static class LedgeSuperimposer
             while (validLedges.Count > 0)
             { //repeatedly GetOrderedGroup() on valid_ledges until no ledges are left behind
                EdgeCollection<TileEdge> orderedLedges = validLedges.GetOrderedCollection();
-               var validSet = new SCol.HashSet<TileEdge>(validLedges);
+               var validSet = new HashSet<TileEdge>(validLedges);
                validSet.ExceptWith(orderedLedges);
                validLedges = new EdgeCollection<TileEdge>(validSet);
                ledgeCollMapClone.Add(new LedgeCollKey(baseTileMap, tileGroup, holeGroup, superTileMap, superLedgeGroup), orderedLedges);

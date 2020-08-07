@@ -2,7 +2,7 @@ using EFSMono.Scripts.DataStructures.Geometry;
 using EFSMono.Scripts.SystemModules.GeneralUtilities;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.DataKeys;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Perimeter
 {
@@ -25,13 +25,13 @@ namespace EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects
 /// </summary>
 public class PerimeterData
 {
-    private readonly SCol.Dictionary<EdgeCollKey, EdgeCollection<TileEdge>> _edgeCollMap;
-    private readonly SCol.Dictionary<HoleGroupKey, int> _holeGroupMap;
-    private readonly SCol.Dictionary<TileGroupKey, int> _tileGroupMap;
+    private readonly Dictionary<EdgeCollKey, EdgeCollection<TileEdge>> _edgeCollMap;
+    private readonly Dictionary<HoleGroupKey, int> _holeGroupMap;
+    private readonly Dictionary<TileGroupKey, int> _tileGroupMap;
 
     public PerimeterData(TileMapList tileMaps)
     {
-        SCol.Dictionary<TileMap, SCol.List<EdgeCollection<TileEdge>>> tileMapToAllEdgeCols = tileMaps.BuildPerimeter();
+        Dictionary<TileMap, List<EdgeCollection<TileEdge>>> tileMapToAllEdgeCols = tileMaps.BuildPerimeter();
         (this._edgeCollMap, this._holeGroupMap, this._tileGroupMap) = tileMaps.UnpackEdgeCols(tileMapToAllEdgeCols);
     }
 

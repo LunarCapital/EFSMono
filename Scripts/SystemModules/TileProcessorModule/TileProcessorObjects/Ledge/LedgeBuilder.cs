@@ -4,7 +4,7 @@ using EFSMono.Scripts.SystemModules.GeneralUtilities;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.DataKeys;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Perimeter;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Ledge
 {
@@ -37,16 +37,14 @@ public static class LedgeBuilder
     /// <param name="perimData">Info on all perimeters.</param>
     /// <param name="tileMaps">List of all tilemaps.</param>
     /// <returns>Four dictionaries matching LedgeData's four properties which map EdgeCollections containing ledge data to multiple fields.</returns>
-    public static (SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
-                   SCol.Dictionary<LedgeGroupKey, int> ledgeGroupMap,
-                   SCol.Dictionary<HoleGroupKey, int> holeGroupMap,
-                   SCol.Dictionary<TileGroupKey, int> tileGroupMap) BuildLedges(this TileMapList tileMaps,
-                                                                                PerimeterData perimData)
+    public static (Dictionary<LedgeCollKey, EdgeCollection<TileEdge>>, Dictionary<LedgeGroupKey, int>,
+                   Dictionary<HoleGroupKey, int>, Dictionary<TileGroupKey, int>) BuildLedges(this TileMapList tileMaps,
+                                                                                             PerimeterData perimData)
     {
-        var ledgeCollMap = new SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>>();
-        var ledgeGroupMap = new SCol.Dictionary<LedgeGroupKey, int>();
-        var holeGroupMap = new SCol.Dictionary<HoleGroupKey, int>();
-        var tileGroupMap = new SCol.Dictionary<TileGroupKey, int>();
+        var ledgeCollMap = new Dictionary<LedgeCollKey, EdgeCollection<TileEdge>>();
+        var ledgeGroupMap = new Dictionary<LedgeGroupKey, int>();
+        var holeGroupMap = new Dictionary<HoleGroupKey, int>();
+        var tileGroupMap = new Dictionary<TileGroupKey, int>();
 
         foreach (TileMap tileMap in tileMaps.Values)
         {
@@ -81,18 +79,17 @@ public static class LedgeBuilder
     /// <param name="tileGroup">TileGroup that ledges are being filled for.</param>
     /// <param name="holeGroup">HoleGroup that ledges are being filled for.</param>
     /// <returns>Two dictionaries matching the two input dicts but with the new ledge data added to each.</returns>
-    private static (SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
-             SCol.Dictionary<LedgeGroupKey, int> ledgeGroupMap) _FillLedges(
-                                                SCol.IDictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
-                                                SCol.IDictionary<LedgeGroupKey, int> ledgeGroupMap,
-                                                TileMapList tileMaps,
-                                                TileMap tileMap,
-                                                EdgeCollection<TileEdge> perimeter,
-                                                int tileGroup,
-                                                int holeGroup)
+    private static (Dictionary<LedgeCollKey, EdgeCollection<TileEdge>>, Dictionary<LedgeGroupKey, int>) _FillLedges(
+        IDictionary<LedgeCollKey, EdgeCollection<TileEdge>> ledgeCollMap,
+        IDictionary<LedgeGroupKey, int> ledgeGroupMap,
+        TileMapList tileMaps,
+        TileMap tileMap,
+        EdgeCollection<TileEdge> perimeter,
+        int tileGroup,
+        int holeGroup)
     {
-        var ledgeCollMapClone = new SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>>(ledgeCollMap);
-        var ledgeGroupMapClone = new SCol.Dictionary<LedgeGroupKey, int>(ledgeGroupMap);
+        var ledgeCollMapClone = new Dictionary<LedgeCollKey, EdgeCollection<TileEdge>>(ledgeCollMap);
+        var ledgeGroupMapClone = new Dictionary<LedgeGroupKey, int>(ledgeGroupMap);
 
         var ledges = new EdgeCollection<TileEdge>();
         int ledgeGroup = 0;

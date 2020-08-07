@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Linq;
-using EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.DataStructures.Graphs
 {
@@ -12,12 +11,12 @@ namespace EFSMono.Scripts.DataStructures.Graphs
 /// </summary>
 public abstract class GenericGraph<T> where T : GenericGraphNode
 {
-    public SCol.SortedList<int, T> nodes { get; }
+    public SortedList<int, T> nodes { get; }
     public int[,] adjMatrix { get; }
 
-    protected GenericGraph(SCol.IReadOnlyCollection<T> nodeCollection)
+    protected GenericGraph(IReadOnlyCollection<T> nodeCollection)
     { 
-        this.nodes = new SCol.SortedList<int, T>();
+        this.nodes = new SortedList<int, T>();
         this.adjMatrix = this._ConstructAdjMatrix(nodeCollection);
         foreach (T node in nodeCollection)
         {
@@ -38,18 +37,26 @@ public abstract class GenericGraph<T> where T : GenericGraphNode
     /// nodes that were visited during the DFS.
     /// </summary>
     /// <param name="startNodes">List of nodes to start with.</param>
+    /// <param name="excludedEdges">Edges to exclude from the DFS.</param>
     /// <returns>List of all nodes visited during the DFS.</returns>
-    public SCol.List<T> GetDFSCover(SCol.List<T> startNodes)
+    public List<T> GetDFSCover(List<T> startNodes, Dictionary<int, HashSet<int>> excludedEdges = null)
     {
-        SCol.HashSet<T> visited = startNodes.ToHashSet();
-        var stack = new SCol.Stack<T>();
+        if (excludedEdges == null) excludedEdges = new Dictionary<int, HashSet<int>>();
+        HashSet<T> visited = startNodes.ToHashSet();
+        var stack = new Stack<T>();
         startNodes.ForEach(x => stack.Push(x));
 
         while (stack.Count > 0)
         {
             T node = stack.Pop();
+            
             for (int neighbourID = 0; neighbourID < this.adjMatrix.GetLength(1); neighbourID++)
             {
+                if (excludedEdges.ContainsKey(node.id))
+                {
+                    if (excludedEdges[node.id].Contains(neighbourID)) continue;
+                }
+                
                 if (!visited.Contains(this.nodes[neighbourID]) && adjMatrix[node.id, neighbourID] > 0)
                 {
                     visited.Add(this.nodes[neighbourID]);
@@ -65,7 +72,7 @@ public abstract class GenericGraph<T> where T : GenericGraphNode
     /// </summary>
     /// <param name="nodeCollection">Nodes that will exist in graph.</param>
     /// <returns>2D int array representing the adjacency matrix.</returns>
-    protected virtual int[,] _ConstructAdjMatrix(SCol.IReadOnlyCollection<T> nodeCollection)
+    protected virtual int[,] _ConstructAdjMatrix(IReadOnlyCollection<T> nodeCollection)
     {
         var localAdjMatrix = new int[nodeCollection.Count, nodeCollection.Count];
         foreach (T node in nodeCollection)
@@ -84,7 +91,7 @@ public abstract class GenericGraph<T> where T : GenericGraphNode
     /// </summary>
     /// <param name="nodeCollection">Collection of nodes (not necessarily sorted) passed in to the constructor.</param>
     /// <exception cref="IndexesNotASequenceException">Thrown if the graph is invalid.</exception>
-    private void _CheckValidity(SCol.IReadOnlyCollection<T> nodeCollection)
+    private void _CheckValidity(IReadOnlyCollection<T> nodeCollection)
     {
         bool missingIndex = this.nodes.Where((pair, i) => i != this.nodes.Keys[i]).Any();
         bool duplicateIndexes = this.nodes.Count != nodeCollection.Count;

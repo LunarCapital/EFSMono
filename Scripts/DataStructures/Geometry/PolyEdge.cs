@@ -1,4 +1,3 @@
-using EFSMono.Scripts.Autoload;
 using Godot;
 
 namespace EFSMono.Scripts.DataStructures.Geometry
@@ -36,7 +35,7 @@ public class PolyEdge : Edge
     /// Gets the reversed edge of this edge, which is just a and b swapped
     /// </summary>
     /// <returns>An edge with the same properties as this one but with a and b swapped</returns>
-    private new PolyEdge GetReverseEdge()
+    public override Edge GetReverseEdge()
     {
         return new PolyEdge(this.b, this.a)
         {

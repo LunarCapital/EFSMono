@@ -1,5 +1,5 @@
 ﻿using System.Linq;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 using Godot;
 // ReSharper disable CommentTypo
 
@@ -43,7 +43,7 @@ public class AxisFuncs : Node
     /// </summary>
     /// <param name="coordsInCarte">List of Vector2s in cartesian axis.</param>
     /// <returns>List of coordinates converted to isometric axis.</returns>
-    public static SCol.List<Vector2> CoordArrayToIsoAxis(SCol.IEnumerable<Vector2> coordsInCarte)
+    public static List<Vector2> CoordArrayToIsoAxis(IEnumerable<Vector2> coordsInCarte)
     {
         return coordsInCarte.Select(CoordToIsoAxis).ToList();
     }
@@ -54,7 +54,7 @@ public class AxisFuncs : Node
     /// </summary>
     /// <param name="coordsInCarte">List of Vector2s in isometric axis.</param>
     /// <returns>List of coordinates converted to cartesian axis.</returns>
-    public static SCol.List<Vector2> CoordArrayToCarteAxis(SCol.IEnumerable<Vector2> coordsInCarte)
+    public static List<Vector2> CoordArrayToCarteAxis(IEnumerable<Vector2> coordsInCarte)
     {
         return coordsInCarte.Select(CoordToCarteAxis).ToList();       
     }

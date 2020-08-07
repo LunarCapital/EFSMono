@@ -1,6 +1,6 @@
 using Godot;
 using TinyMessenger;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.SystemModules.PhysicsControllerModule.HubMessages
 {
@@ -12,9 +12,9 @@ namespace EFSMono.Scripts.SystemModules.PhysicsControllerModule.HubMessages
 public class FloorsConstructedMessage : ITinyMessage
 {
     public object Sender { get; private set; }
-    private readonly SCol.Dictionary<TileMap, RID> _tileMapToFloorArea2Ds;
+    private readonly Dictionary<TileMap, RID> _tileMapToFloorArea2Ds;
 
-    public FloorsConstructedMessage(object sender, SCol.Dictionary<TileMap, RID> tileMapToFloorArea2Ds)
+    public FloorsConstructedMessage(object sender, Dictionary<TileMap, RID> tileMapToFloorArea2Ds)
     {
         this.Sender = sender;
         this._tileMapToFloorArea2Ds = tileMapToFloorArea2Ds;
@@ -28,7 +28,7 @@ public class FloorsConstructedMessage : ITinyMessage
         }
         else
         {
-            throw new SCol.KeyNotFoundException("Dict " + nameof(this._tileMapToFloorArea2Ds) + " does not contain key TileMap " + nameof(tileMap));
+            throw new KeyNotFoundException("Dict " + nameof(this._tileMapToFloorArea2Ds) + " does not contain key TileMap " + nameof(tileMap));
         }
     }
 }

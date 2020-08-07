@@ -5,7 +5,8 @@ using EFSMono.Scripts.SystemModules.PhysicsControllerModule.RIDConstructors.Poly
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Perimeter;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
+using EFSMono.Scripts.SystemModules.PhysicsControllerModule.RIDConstructors.PolygonPartitioning.PolygonObjects;
 
 namespace EFSMono.Scripts.SystemModules.PhysicsControllerModule.RIDConstructors
 {
@@ -79,11 +80,11 @@ public static class FloorConstructor
     /// <param name="tileMapToFloorArea2Ds">Map of TileMaps to their respective Area2D RID.</param>
     /// <param name="perimData">Data of all perimeters of all TileMaps.</param>
     /// <returns></returns>
-    public static SCol.Dictionary<RID, SCol.List<ConvexPolygonShape2D>> 
-        ConstructFloorPartitions(this TileMapList tileMaps, SCol.Dictionary<TileMap, RID> tileMapToFloorArea2Ds,
+    public static Dictionary<RID, List<ConvexPolygonShape2D>> 
+        ConstructFloorPartitions(this TileMapList tileMaps, Dictionary<TileMap, RID> tileMapToFloorArea2Ds,
                                  PerimeterData perimData)
     {
-        var floorArea2DToPolygons = new SCol.Dictionary<RID, SCol.List<ConvexPolygonShape2D>>();
+        var floorArea2DToPolygons = new Dictionary<RID, List<ConvexPolygonShape2D>>();
 
         foreach (TileMap tileMap in tileMaps.Values)
         {
@@ -92,13 +93,13 @@ public static class FloorConstructor
             for (int tileGroup = 0; tileGroup < maxTileGroups; tileGroup++)
             {
                 int maxHoleGroups = perimData.GetMaxHoleGroup(tileMap, tileGroup);
-                var allPerims = new SCol.List<Vector2>[maxHoleGroups];
+                var allPerims = new List<Vector2>[maxHoleGroups];
                 for (int holeGroup = 0; holeGroup < maxHoleGroups; holeGroup++)
                 { //put all perims (outer and hole) from one tile group into a single array of lists (gods help me) for partitioning
                     EdgeCollection<TileEdge> edgeColl = perimData.GetEdgeCollection(tileMap, tileGroup, holeGroup);
-                    allPerims[holeGroup] = new SCol.List<Vector2>(edgeColl.GetSimplifiedPerim());
+                    allPerims[holeGroup] = new List<Vector2>(edgeColl.GetSimplifiedPerim());
                 }
-                SCol.List<ConvexPolygonShape2D> partitionedRectangles = _PartitionPolygonToRectangles(allPerims);
+                List<ConvexPolygonShape2D> partitionedRectangles = _PartitionPolygonToRectangles(allPerims);
                 foreach (ConvexPolygonShape2D shape in partitionedRectangles)
                 {
                     Physics2DServer.AreaAddShape(area2dRID, shape.GetRid());
@@ -117,23 +118,31 @@ public static class FloorConstructor
     /// different perimeter.</param>
     /// <returns>A list of ConvexPolygonShape2Ds, with each one being a rectangle that the original irregular polygon
     /// was decomposed into.</returns>
-    private static SCol.List<ConvexPolygonShape2D> _PartitionPolygonToRectangles(
-        SCol.IReadOnlyList<SCol.List<Vector2>> allPerims)
+    private static List<ConvexPolygonShape2D> _PartitionPolygonToRectangles(
+        IReadOnlyList<List<Vector2>> allPerims)
     {
-        var partitionedRectangles = new SCol.List<ConvexPolygonShape2D>();
+        var partitionedRectangles = new List<ConvexPolygonShape2D>();
 
-        var allIsoPerims = new SCol.List<Vector2>[allPerims.Count];
+        var allIsoPerims = new List<Vector2>[allPerims.Count];
         for (int i = 0; i < allPerims.Count; i++)
         {
             //convert to iso axis so all the shapes 'look' rectangular
             allIsoPerims[i] = AxisFuncs.CoordArrayToIsoAxis(allPerims[i]);
         }
 
-        SCol.List<SCol.List<Vector2>> allRectangles = allIsoPerims.DecomposeComplexPolygonToRectangles();
+        (List<Chord> chords, List<ChordlessPolygon> chordlessPolygons) = allIsoPerims.DecomposeComplexPolygonToRectangles();
+        List<List<Vector2>> allRectangles = chordlessPolygons.DecomposeChordlessPolygonToRectangles(chords);
 
-        foreach (SCol.List<Vector2> rectangle in allRectangles)
+        foreach (List<Vector2> rectangle in allRectangles)
         {
-            SCol.List<Vector2> carteRectangle = AxisFuncs.CoordArrayToCarteAxis(rectangle);
+            GD.PrintS("Rectangle? Has perims: ");
+            foreach (Vector2 vertex in rectangle)
+            {
+                GD.PrintS(vertex);
+            }
+
+            
+            List<Vector2> carteRectangle = AxisFuncs.CoordArrayToCarteAxis(rectangle);
             var cps2d = new ConvexPolygonShape2D()
             {
                 Points = carteRectangle.ToArray()

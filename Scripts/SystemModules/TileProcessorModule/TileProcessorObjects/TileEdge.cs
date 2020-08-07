@@ -36,7 +36,7 @@ public class TileEdge : Edge
     /// Gets the reversed edge of this edge, which is just a and b swapped
     /// </summary>
     /// <returns>An edge with the same properties as this one but with a and b swapped</returns>
-    private new TileEdge GetReverseEdge()
+    public override Edge GetReverseEdge()
     {
         return new TileEdge(this.b, this.a, this.tileCoords, this.tileSide)
         {

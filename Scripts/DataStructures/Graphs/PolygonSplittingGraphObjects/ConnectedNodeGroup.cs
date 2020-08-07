@@ -3,7 +3,7 @@ using System.Linq;
 using EFSMono.Scripts.Autoload;
 using EFSMono.Scripts.DataStructures.Geometry;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects
 {
@@ -13,22 +13,27 @@ namespace EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects
 public class ConnectedNodeGroup : IComparable
 {
     public int id { get; }
-    public SCol.SortedList<int, PolygonSplittingGraphNode> nodes { get; }
-    private SCol.SortedDictionary<PolygonSplittingGraphNode, int> _xySortedNodes;
-    public SCol.List<PolygonSplittingGraphNode> outerPerim { get; }
+    public SortedList<int, PolygonSplittingGraphNode> nodes { get; }
+    private readonly SortedDictionary<PolygonSplittingGraphNode, int> _xySortedNodes;
+    public List<PolygonSplittingGraphNode> outerPerimNodes { get; }
+    public Vector2[] outerPerimSimplified { get; }
+    public Dictionary<int, HashSet<int>> bridges { get; }
     public float area { get; }
     
-    public ConnectedNodeGroup(int id, SCol.SortedList<int, PolygonSplittingGraphNode> nodes, int[,] adjMatrix)
+    public ConnectedNodeGroup(int id, SortedList<int, PolygonSplittingGraphNode> nodes, int[,] adjMatrix,
+                              Dictionary<int, HashSet<int>> bridges = null)
     {
+        if (bridges == null) bridges = new Dictionary<int, HashSet<int>>();
         this.id = id;
         this.nodes = nodes;
-        this._xySortedNodes = new SCol.SortedDictionary<PolygonSplittingGraphNode, int>();
-        foreach (SCol.KeyValuePair<int, PolygonSplittingGraphNode> idToNode in this.nodes)
+        this._xySortedNodes = new SortedDictionary<PolygonSplittingGraphNode, int>();
+        foreach (KeyValuePair<int, PolygonSplittingGraphNode> idToNode in this.nodes)
         {
             this._xySortedNodes.Add(idToNode.Value, idToNode.Key);
         }
-        this.outerPerim = this._FindOuterPerim(adjMatrix);
-        this._SimplifyOuterPerim();
+        this.outerPerimNodes = this._FindOuterPerim(adjMatrix);
+        this.outerPerimSimplified = this._SimplifyOuterPerim();
+        this.bridges = bridges;
         this.area = this._CalculateArea();
     }
 
@@ -44,15 +49,15 @@ public class ConnectedNodeGroup : IComparable
     /// </summary>
     /// <param name="adjMatrix">Adjacency Matrix of nodes.</param>
     /// <returns>List of nodes in CCW order that describe the outer perimeter.</returns>
-    private SCol.List<PolygonSplittingGraphNode> _FindOuterPerim(int[,] adjMatrix)
+    private List<PolygonSplittingGraphNode> _FindOuterPerim(int[,] adjMatrix)
     {
         PolygonSplittingGraphNode startVertex = this._xySortedNodes.First().Key;
-        var localOuterPerim = new SCol.List<PolygonSplittingGraphNode>{startVertex};
+        var localOuterPerim = new List<PolygonSplittingGraphNode>{startVertex};
         Vector2 bearing = Globals.NORTH_VEC2;
         PolygonSplittingGraphNode currentVertex = startVertex;
         do
         {
-            var validNeighbours = new SCol.HashSet<PolygonSplittingGraphNode>();
+            var validNeighbours = new HashSet<PolygonSplittingGraphNode>();
             for (int i = 0; i < adjMatrix.GetLength(1); i++)
             {
                 if (adjMatrix[currentVertex.id, i] == 1 && this.nodes.ContainsKey(i))
@@ -78,7 +83,7 @@ public class ConnectedNodeGroup : IComparable
     /// <param name="validNeighbours">A set of valid neighbours </param>
     /// <returns>The next neighbour from the current vertex to make the outer perimeter.</returns>
     private PolygonSplittingGraphNode _ChooseNextNeighbour(PolygonSplittingGraphNode currentVertex, Vector2 bearing,
-                                                           SCol.HashSet<PolygonSplittingGraphNode> validNeighbours)
+                                                           HashSet<PolygonSplittingGraphNode> validNeighbours)
     {
         float minAngle = 360;
         PolygonSplittingGraphNode currentSolution = validNeighbours.First();
@@ -100,17 +105,19 @@ public class ConnectedNodeGroup : IComparable
     /// <summary>
     /// Simplifies the outer perim using EdgeCollections simplification algorithm.
     /// </summary>
-    private void _SimplifyOuterPerim()
+    private Vector2[] _SimplifyOuterPerim()
     {
         var edgeCollection = new EdgeCollection<PolyEdge>();
-        for (int i = 0; i < this.outerPerim.Count; i++)
+        for (int i = 0; i < this.outerPerimNodes.Count; i++)
         {
-            var thisCoord = new Vector2(this.outerPerim[i].x, this.outerPerim[i].y);
-            var nextCoord = new Vector2(this.outerPerim[(i+1)% this.outerPerim.Count].x, this.outerPerim[(i+1)% this.outerPerim.Count].y);
+            var thisCoord = new Vector2(this.outerPerimNodes[i].x, this.outerPerimNodes[i].y);
+            var nextCoord = new Vector2(this.outerPerimNodes[(i + 1) % this.outerPerimNodes.Count].x,
+                this.outerPerimNodes[(i + 1) % this.outerPerimNodes.Count].y);
             if (thisCoord == nextCoord) continue;
             var polyEdge = new PolyEdge(thisCoord, nextCoord);
             edgeCollection.Add(polyEdge);
         }
+        return edgeCollection.GetSimplifiedPerim().ToArray();
     }
     
     /// <summary>
@@ -120,26 +127,9 @@ public class ConnectedNodeGroup : IComparable
     /// <returns>Returns a float of the area.</returns>
     private float _CalculateArea()
     {
-        return GeometryFuncs.GetAreaOfPolygon(this.GetOuterPerimAsVectorArray());
+        return GeometryFuncs.GetAreaOfPolygon(this.outerPerimSimplified);
     }
-
-    /// <summary>
-    /// Returns the outer perimeter as a block array of Vector2s describing its vertices.
-    /// Note that we DO NOT follow the convention of closed loops having collection[first] = collection[last] because
-    /// this function is likely used in tandem with GeometryFuncs to calculate area/compare polygons.
-    /// </summary>
-    /// <returns></returns>
-    public Vector2[] GetOuterPerimAsVectorArray()
-    {
-        var outerVertices = new Vector2[this.outerPerim.Count];
-        for (int i = 0; i < this.outerPerim.Count; i++)
-        {
-            PolygonSplittingGraphNode outerNode = this.outerPerim[i];
-            outerVertices[i] = new Vector2(outerNode.x, outerNode.y);
-        }
-        return outerVertices;
-    }
-
+    
     public override int GetHashCode()
     {
         return this.id.GetHashCode();
@@ -152,12 +142,65 @@ public class ConnectedNodeGroup : IComparable
 
     private bool Equals(ConnectedNodeGroup other)
     {
-        return this.id == other.id && this.nodes.Equals(other.nodes) && this.outerPerim.Equals(other.outerPerim);
+        return this.id == other.id && this.nodes.Equals(other.nodes) && this.outerPerimNodes.Equals(other.outerPerimNodes);
     }
 
     public int CompareTo(object obj)
     {
         return this._CompareTo((ConnectedNodeGroup) obj);
+    }
+
+    /// <summary>
+    /// Checks if another ConnectedNodeGroup shares a vertex (or vertices) with this group, IFF the shared vertex nodes
+    /// have different IDs.
+    /// </summary>
+    /// <param name="otherGroup"></param>
+    /// <returns>A HashSet of Vector2s of the vertices that appear in both groups but with different IDs.</returns>
+    public HashSet<Vector2> GetSharedVertices(ConnectedNodeGroup otherGroup)
+    {
+        var sharedVertices = new HashSet<Vector2>();
+        foreach (PolygonSplittingGraphNode thisNode in this.outerPerimNodes)
+        {
+            foreach (PolygonSplittingGraphNode otherNode in otherGroup.outerPerimNodes)
+            {
+                if (thisNode.x == otherNode.x && thisNode.y == otherNode.y)
+                {
+                    if (thisNode.id == otherNode.id) continue;
+                    sharedVertices.Add(new Vector2(thisNode.x, thisNode.y));
+                }
+            }
+        }
+        return sharedVertices;
+    }
+
+    /// <summary>
+    /// Checks if the other group's outer perimeter is inside this group's perimeter.  Inclusive of the two groups
+    /// sharing vertices.
+    /// </summary>
+    /// <param name="otherGroup"></param>
+    /// <returns>True if the other group is inside this group, false otherwise.</returns>
+    public bool IsOtherGroupInThisGroup(ConnectedNodeGroup otherGroup)
+    {
+        HashSet<Vector2> sharedVertices = this.GetSharedVertices(otherGroup);
+        if (sharedVertices.Count == 0)
+        {
+            return GeometryFuncs.IsPolyInPoly(otherGroup.outerPerimSimplified, this.outerPerimSimplified);
+        }
+        else
+        {
+            bool isInside = true;
+            foreach (PolygonSplittingGraphNode node in otherGroup.nodes.Values)
+            {
+                var nodeCoord = new Vector2(node.x, node.y);
+                if (sharedVertices.Contains(nodeCoord)) continue;
+                if (!GeometryFuncs.IsPointInPoly(nodeCoord, this.outerPerimSimplified))
+                {
+                    isInside = false;
+                    break;
+                }
+            }
+            return isInside;
+        }
     }
     
     /// <summary>

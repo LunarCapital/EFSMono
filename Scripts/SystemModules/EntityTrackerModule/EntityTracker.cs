@@ -4,7 +4,7 @@ using EFSMono.Scripts.SystemModules.GeneralUtilities;
 using EFSMono.Scripts.SystemModules.PhysicsControllerModule.HubMessages;
 using Godot;
 using TinyMessenger;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 // ReSharper disable ClassNeverInstantiated.Global
 
 namespace EFSMono.Scripts.SystemModules.EntityTrackerModule
@@ -18,7 +18,7 @@ public class EntityTracker : Node2D
     //Variables
     private TinyMessengerHub _toPhysicsHub;
     //TODO a MessengerHub that tracks entity creation/deletion, DAMN I love this TinyMessenger shit 100% gonna overuse and regret it
-    private SCol.List<Entity> _entities;
+    private List<Entity> _entities;
 
     public void ReceiveMsgHub(TinyMessengerHub toPhysicsHub)
     {
@@ -35,7 +35,7 @@ public class EntityTracker : Node2D
     {        
         this._toPhysicsHub.Subscribe<FloorsConstructedMessage>((msg) => 
                                                                this._HandleFloorsConstructed(tileMaps, msg));
-        this._entities = new SCol.List<Entity>();
+        this._entities = new List<Entity>();
         foreach (TileMap tileMap in tileMaps.Values)
         {
             foreach (Entity entity in tileMap.GetChildren().OfType<Entity>())

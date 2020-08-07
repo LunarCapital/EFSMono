@@ -1,6 +1,5 @@
 ﻿using System.Linq;
-using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.DataStructures.Graphs.BipartiteGraphObjects
 {
@@ -16,9 +15,9 @@ public static class BipartiteGraphMaxMatchingFinder
     /// </summary>
     /// <param name="bipartiteGraph">Graph whose MM is being found.</param>
     /// <returns>Dictionary that maps left -> right nodes in the MM.</returns>
-    public static SCol.Dictionary<BipartiteGraphNode, BipartiteGraphNode> GetMaxMatching(this BipartiteGraph bipartiteGraph)
+    public static Dictionary<BipartiteGraphNode, BipartiteGraphNode> GetMaxMatching(this BipartiteGraph bipartiteGraph)
     {
-        var networkNodesIDs = new SCol.List<int>(bipartiteGraph.nodes.Keys);
+        var networkNodesIDs = new List<int>(bipartiteGraph.nodes.Keys);
         int sourceID = networkNodesIDs.Count;
         int sinkID = sourceID + 1;
         networkNodesIDs.Add(sourceID);
@@ -29,7 +28,7 @@ public static class BipartiteGraphMaxMatchingFinder
         var flowNetwork = new int[networkNodesIDs.Count, networkNodesIDs.Count];
         var residualNetwork = (int[,]) capacityNetwork.Clone();
 
-        SCol.List<int> augmentingPath;
+        List<int> augmentingPath;
         while ((augmentingPath = _GetAugmentingPath(residualNetwork, sourceID, sinkID)).Count > 1)
         {
             flowNetwork = _UpdateFlowNetwork(augmentingPath, flowNetwork);
@@ -51,9 +50,9 @@ public static class BipartiteGraphMaxMatchingFinder
     /// <param name="sourceID">ID of source node.</param>
     /// <param name="sinkID">ID of sink node.</param>
     /// <returns>The capacity network, a multidimensional array.</returns>
-    private static int[,] _ConstructCapacityNetwork(SCol.IReadOnlyCollection<int> networkNodeIDs,
-                                                    SCol.HashSet<int> leftNodeIDs,
-                                                    SCol.HashSet<int> rightNodeIDs,
+    private static int[,] _ConstructCapacityNetwork(IReadOnlyCollection<int> networkNodeIDs,
+                                                    HashSet<int> leftNodeIDs,
+                                                    HashSet<int> rightNodeIDs,
                                                     int[,] adjMatrix, int sourceID, int sinkID)
     {
         var capacityNetwork = new int[networkNodeIDs.Count, networkNodeIDs.Count];
@@ -96,10 +95,10 @@ public static class BipartiteGraphMaxMatchingFinder
     /// <param name="sourceID">ID of source node.</param>
     /// <param name="sinkID">ID of sink node.</param>
     /// <returns>Array of IDs in forward order from source to sink.</returns>
-    private static SCol.List<int> _GetAugmentingPath(int[,] residualNetwork, int sourceID, int sinkID)
+    private static List<int> _GetAugmentingPath(int[,] residualNetwork, int sourceID, int sinkID)
     {
-        var queue = new SCol.Queue<int>();
-        var discovered = new SCol.HashSet<int>();
+        var queue = new Queue<int>();
+        var discovered = new HashSet<int>();
         var parent = new int[sinkID + 1];
         for (int i = 0; i < parent.Length; i++)
         {
@@ -129,9 +128,9 @@ public static class BipartiteGraphMaxMatchingFinder
     /// <param name="parent">Int array of parents of all nodes from a BFS.</param>
     /// <param name="sinkID">ID of sink node.</param>
     /// <returns>Augmenting path to sink ID.</returns>
-    private static SCol.List<int> _ExtractAugmentingPath(SCol.IReadOnlyList<int> parent, int sinkID)
+    private static List<int> _ExtractAugmentingPath(IReadOnlyList<int> parent, int sinkID)
     {
-        var augmentingPath = new SCol.List<int> {sinkID};
+        var augmentingPath = new List<int> {sinkID};
         int prev = parent[sinkID];
         while (prev != -1)
         {
@@ -139,7 +138,7 @@ public static class BipartiteGraphMaxMatchingFinder
             prev = parent[prev];
         }
         augmentingPath.Reverse();
-        return parent[sinkID] != -1 ? augmentingPath : new SCol.List<int>();
+        return parent[sinkID] != -1 ? augmentingPath : new List<int>();
     }
 
     /// <summary>
@@ -148,7 +147,7 @@ public static class BipartiteGraphMaxMatchingFinder
     /// <param name="augmentingPath">Augmenting Path.</param>
     /// <param name="flowNetwork">Flow network.</param>
     /// <returns>The updated flow network with added flow to the augmenting path.</returns>
-    private static int[,] _UpdateFlowNetwork(SCol.IReadOnlyList<int> augmentingPath, int[,] flowNetwork)
+    private static int[,] _UpdateFlowNetwork(IReadOnlyList<int> augmentingPath, int[,] flowNetwork)
     {
         var updatedFlowNetwork = (int[,]) flowNetwork.Clone();
         for (int i = 1; i < augmentingPath.Count; i++)
@@ -192,12 +191,12 @@ public static class BipartiteGraphMaxMatchingFinder
     /// <param name="rightNodeIDs">Set of right node IDs.</param>
     /// <param name="bipartiteNodes">SortedList of BipartiteGraphNodes.</param>
     /// <returns>The max matching, in the form of a dictionary that maps left to right nodes.</returns>
-    private static SCol.Dictionary<BipartiteGraphNode, BipartiteGraphNode> _ExtractMaxMatching(int[,] flowNetwork,
-                                                                                               SCol.HashSet<int> leftNodeIDs,
-                                                                                               SCol.HashSet<int> rightNodeIDs,
-                                                                                               SCol.IReadOnlyDictionary<int, BipartiteGraphNode> bipartiteNodes)
+    private static Dictionary<BipartiteGraphNode, BipartiteGraphNode> _ExtractMaxMatching(int[,] flowNetwork,
+                                                                                          HashSet<int> leftNodeIDs,
+                                                                                          HashSet<int> rightNodeIDs,
+                                                                                          IReadOnlyDictionary<int, BipartiteGraphNode> bipartiteNodes)
     {
-        var maxMatching = new SCol.Dictionary<BipartiteGraphNode, BipartiteGraphNode>();
+        var maxMatching = new Dictionary<BipartiteGraphNode, BipartiteGraphNode>();
         foreach (int leftNodeID in leftNodeIDs)
         {
             foreach (int rightNodeID in rightNodeIDs)

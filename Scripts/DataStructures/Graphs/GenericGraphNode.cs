@@ -1,4 +1,4 @@
-﻿using SCol = System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace EFSMono.Scripts.DataStructures.Graphs
 {
@@ -9,9 +9,9 @@ namespace EFSMono.Scripts.DataStructures.Graphs
 public abstract class GenericGraphNode
 {
     public int id { get; }
-    public SCol.List<int> connectedNodeIDs { get; }
+    public List<int> connectedNodeIDs { get; }
 
-    protected GenericGraphNode(int id, SCol.List<int> connectedNodeIDs)
+    protected GenericGraphNode(int id, List<int> connectedNodeIDs)
     {
         this.id = id;
         this.connectedNodeIDs = connectedNodeIDs;

@@ -3,7 +3,7 @@ using EFSMono.Scripts.SystemModules.GeneralUtilities;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.DataKeys;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Perimeter;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Ledge
 {
@@ -46,10 +46,10 @@ namespace EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects
 /// </summary>
 public class LedgeData
 {
-    private readonly SCol.Dictionary<LedgeCollKey, EdgeCollection<TileEdge>> _ledgeCollMap;
-    private readonly SCol.Dictionary<LedgeGroupKey, int> _ledgeGroupMap;
-    private readonly SCol.Dictionary<HoleGroupKey, int> _holeGroupMap;
-    private readonly SCol.Dictionary<TileGroupKey, int> _tileGroupMap;
+    private readonly Dictionary<LedgeCollKey, EdgeCollection<TileEdge>> _ledgeCollMap;
+    private readonly Dictionary<LedgeGroupKey, int> _ledgeGroupMap;
+    private readonly Dictionary<HoleGroupKey, int> _holeGroupMap;
+    private readonly Dictionary<TileGroupKey, int> _tileGroupMap;
 
     public LedgeData(PerimeterData perimData, TileMapList tileMaps)
     {

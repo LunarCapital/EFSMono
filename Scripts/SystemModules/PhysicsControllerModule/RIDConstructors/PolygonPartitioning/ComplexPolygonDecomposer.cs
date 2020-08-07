@@ -5,7 +5,7 @@ using EFSMono.Scripts.DataStructures.Graphs.BipartiteGraphObjects;
 using EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects;
 using EFSMono.Scripts.SystemModules.PhysicsControllerModule.RIDConstructors.PolygonPartitioning.PolygonObjects;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.SystemModules.PhysicsControllerModule.RIDConstructors.PolygonPartitioning
 {
@@ -19,29 +19,30 @@ public static class ComplexPolygonDecomposer
 {
     /// <summary>
     /// Decomposes a complex polygon described by the input <param>allIsoPerims</param> into the minimum number of
-    /// rectangles.
+    /// rectangles (actually a lie, decomposes them into chordless polygons, which is decomposed into rectangles in
+    /// another class).
     /// </summary>
     /// <param name="allIsoPerims">Array of lists of Vector2s.  Each list describes a perimeter, whether it be
     /// the complex polygon's outer perimeters or holes (the 0'th index is always the outer perimeter).</param>
     /// <returns>A list of lists of Vector2s.  Each list describes a rectangle in coordinates that follow the
     /// isometric axis (and need to be converted back to the cartesian axis elsewhere).</returns>
     // ReSharper disable once ReturnTypeCanBeEnumerable.Global
-    public static SCol.List<SCol.List<Vector2>> DecomposeComplexPolygonToRectangles(this SCol.List<Vector2>[] allIsoPerims)
+    public static (List<Chord>, List<ChordlessPolygon>) DecomposeComplexPolygonToRectangles(this List<Vector2>[] allIsoPerims)
     {
-        var allRectangles = new SCol.List<SCol.List<Vector2>>();
-        foreach (SCol.List<Vector2> perim in allIsoPerims)
+        int perimID = 0;
+        foreach (List<Vector2> perim in allIsoPerims)
         {
-            GD.PrintS("Perim:");
+            if (perimID == 0) GD.PrintS("Outer Perim:");
+            if (perimID > 0) GD.PrintS("Hole Perim:");
             foreach (Vector2 vertex in perim)
             {
                 GD.PrintS(vertex.x + ", " + vertex.y);
             }
+            perimID++;
         }
 
-        SCol.List<SCol.List<Vector2>> chordlessPolygons = _ComplexToChordlessPolygons(allIsoPerims);
-        //TODO split chordless polygons into rectangles
-        
-        return allRectangles;
+        (List<Chord> chords, List<ChordlessPolygon> chordlessPolygons) = _ComplexToChordlessPolygons(allIsoPerims);
+        return (chords, chordlessPolygons);
     }
 
     /// <summary>
@@ -50,50 +51,58 @@ public static class ComplexPolygonDecomposer
     /// <param name="allIsoPerims">Array of lists of Vector2s, each describing a perimeter of a tile group.</param>
     /// <returns>A list of lists of Vector2s, each list describing a chordless polygon.</returns>
     // ReSharper disable once ReturnTypeCanBeEnumerable.Local
-    private static SCol.List<SCol.List<Vector2>> _ComplexToChordlessPolygons(SCol.List<Vector2>[] allIsoPerims)
+    private static (List<Chord>, List<ChordlessPolygon>) _ComplexToChordlessPolygons(List<Vector2>[] allIsoPerims)
     {
-        //Give each thing its own function, except that last one it needs its own class
-        
-        //Find Chords
-        SCol.List<Chord> chords = _FindChords(allIsoPerims);
-        //Build Bipartite Graph
-        SCol.Dictionary<BipartiteGraphNode, Chord> bipartiteNodeToChords = _ConvertChordsToNodes(chords);
+        List<Chord> chords = _FindChords(allIsoPerims);
+        Dictionary<BipartiteGraphNode, Chord> bipartiteNodeToChords = _ConvertChordsToNodes(chords);
         GD.PrintS("# of chords: " + chords.Count);
         foreach (Chord chord in chords)
         {
             GD.PrintS("Chord is from: " + chord.a + " to " + chord.b);
         }
         var bipartiteGraph = new BipartiteGraph(bipartiteNodeToChords.Keys);
-        
-        //Find Max Independent Set (conjugate of MVC)
-        SCol.HashSet<BipartiteGraphNode> maxIndependentSet = bipartiteGraph.GetMaxIndependentSet();
-        SCol.List<PolygonSplittingGraphNode> polygonSplittingNodes = _ConstructPolygonSplittingNodes(allIsoPerims, bipartiteNodeToChords, maxIndependentSet);
-        
-        //Extract Chordless Polygons by: (separate class)
-        //         2.6 Extracting these chord-less polygons by:
-        // 
-        //             2.6.1 Constructing a graph out of the 'drawing', with vertices as nodes and lines/chords as edges.
+        HashSet<BipartiteGraphNode> maxIndependentSet = bipartiteGraph.GetMaxIndependentSet();
+        List<PolygonSplittingGraphNode> polygonSplittingNodes = _ConstructPolygonSplittingNodes(allIsoPerims, bipartiteNodeToChords, maxIndependentSet);
         PolygonSplittingGraph polygonSplittingGraph = new PolygonSplittingGraph(polygonSplittingNodes, allIsoPerims);
-        SCol.List<RectangularPolygon> minCycles = polygonSplittingGraph.GetMinCycles();
-        //             2.6.2 Finding 'Node Covers' by running DFS on the graph until all nodes are visited.
-        //             2.6.3 Constructing a 'tree' of Node Covers where a parent cover contains child covers, and covers that
-        //                   do not contain each other are siblings.
-        //             2.6.4 Finding the 'Outer Perimeter' of each Node Cover by:
-        // 
-        //                 2.6.4.1 Starting from the node with the smallest X and Y position.
-        //                 2.6.4.2 Defining a bearing as being in the negative Y direction (as there are no nodes in that direction).
-        //                 2.6.4.3 Picking the next node out of available neighbours by choosing the one with the last positive.
-        //                         CCW angle change from the bearing.
-        //                 2.6.4.4 Making the new bearing = direction from new node TO old node.
-        //                 2.6.4.5 Repeating until the start node is reached.
-        // 
-        //             2.6.5 Finding the 'Minimum Cycles' of each Node Cover using BFS.
-        //             2.6.6 Checking which of a Node Cover's Minimum Cycle contains the Outer Perimeter of its children in the
-        //                   Tree of Node Covers.
-        //             2.6.7 Denoting each Minimum Cycle as being a chord-less polygon IF it is not a hole, and denoting the
-        //                   Outer Perimeter of any Node Covers contained within a Minimum Cycle as its hole(s) (it's still
-        //                   a chord-less polygon, just with a hole(s)).
-        return new SCol.List<SCol.List<Vector2>>(); //TODO remove this placeholder
+        for (int i = 0; i < polygonSplittingGraph.adjMatrix.GetLength(0); i++)
+        {
+            for (int j = 0; j < polygonSplittingGraph.adjMatrix.GetLength(1); j++)
+            {
+                if (polygonSplittingGraph.adjMatrix[i, j] == 1)
+                {
+                    GD.PrintS("node " + i + " is connected to " + j);
+                }
+            }
+        }
+        
+        List<ChordlessPolygon> minCycles = polygonSplittingGraph.GetMinCycles();
+
+        foreach (ChordlessPolygon polygon in minCycles)
+        {
+            foreach (Vector2 vertex in polygon.outerPerim)
+            {
+                GD.PrintS("polygon perim has vertex: " + vertex);
+            }
+
+            foreach (List<Vector2> hole in polygon.holes)
+            {
+                foreach (Vector2 vertex in hole)
+                {
+                    GD.PrintS("polygon hole has vertex: " + vertex);
+                }
+                GD.PrintS("next hole");
+            }
+
+            foreach (Vector2 vertex in polygon.bridges.Keys)
+            {
+                foreach (Vector2 neighbour in polygon.bridges[vertex])
+                {
+                    GD.PrintS("polygon has bridge from: " + vertex + " to " + neighbour);
+                }
+            }
+            GD.PrintS("new poly");
+        }
+        return (chords, minCycles);
     }
 
     /// <summary>
@@ -103,19 +112,21 @@ public static class ComplexPolygonDecomposer
     /// <param name="allIsoPerims">Array of lists of Vector2s, where each list describes a perim of a polygon, whether
     /// that perim be the polygon's outer perimeter or its hole perimeters.</param>
     /// <returns>A list of chords within <param>allIsoPerims</param>.</returns>
-    private static SCol.List<Chord> _FindChords(SCol.List<Vector2>[] allIsoPerims)
+    private static List<Chord> _FindChords(List<Vector2>[] allIsoPerims)
     {
-        var chords = new SCol.List<Chord>();
-        foreach (SCol.List<Vector2> perimA in allIsoPerims)
+        var chords = new List<Chord>();
+        for (int aID = 0; aID < allIsoPerims.Length; aID++)
         {
+            List<Vector2> perimA = allIsoPerims[aID];
             foreach (Vector2 pointA in perimA)
             {
-                foreach (SCol.List<Vector2> perimB in allIsoPerims)
+                for (int bID = 0; bID < allIsoPerims.Length; bID++)
                 {
+                    List<Vector2> perimB = allIsoPerims[bID];
                     foreach (Vector2 pointB in perimB)
                     {
                         if (!_IsChordValid(pointA, pointB, allIsoPerims, chords)) continue;
-                        var chord = new Chord(pointA, pointB);
+                        var chord = new Chord(pointA, pointB, aID, bID);
                         chords.Add(chord);
                     }
                 }
@@ -130,31 +141,77 @@ public static class ComplexPolygonDecomposer
     /// 1. The vertices are different
     /// 2. The segment is vertical or horizontal
     /// 3. The segment does not CONTAIN a part of the polygon's outer perimeter OR hole perimeter(s).
+    /// 4 WHICH I FORGOT. The segment does not intersect any part of the perimeter
+    /// 5 WHICH I ALSO FORGOT. The segment is actually within the polygon.
     /// </summary>
     /// <param name="pointA"></param>
     /// <param name="pointB"></param>
     /// <param name="allIsoPerims"></param>
     /// <param name="chords"></param>
     /// <returns></returns>
-    private static bool _IsChordValid(Vector2 pointA, Vector2 pointB, SCol.List<Vector2>[] allIsoPerims,
-                                      SCol.IEnumerable<Chord> chords)
+    private static bool _IsChordValid(Vector2 pointA, Vector2 pointB, List<Vector2>[] allIsoPerims,
+                                      IEnumerable<Chord> chords)
     {
         if (chords.Any(chord => (chord.a == pointA && chord.b == pointB) || (chord.a == pointB && chord.b == pointA)))
         { //if not already in chords array
             return false;
         }
+
+        bool debugSwitch = false;
+        if (pointA == new Vector2(128, 64) && pointB == new Vector2(192, 64))
+        {
+            GD.PrintS("TEST, A and B are: " + pointA + ", " + pointB);
+            debugSwitch = true;
+        }
+        
         if (pointA == pointB) return false; //if vertices are different
         if (pointA.x != pointB.x && pointA.y != pointB.y) return false; //if the segment is vertical or horizontal
+        Vector2 midpoint = (pointB - pointA) / 2 + pointA;
+        if (debugSwitch) GD.PrintS("made it to here");
         
-        foreach (SCol.List<Vector2> perims in allIsoPerims)
-        { //if segment does not contain a part of the polygon's perimeter(s)
-            for (int i = 0; i < perims.Count - 1; i++)
-            { //i < perims.Count - 1 because perims[0] = perims[last]
-                Vector2 perimVertexA = perims[i];
-                Vector2 perimVertexB = perims[i + 1];
+        for (int i = 0; i < allIsoPerims.Length; i++)
+        {
+            List<Vector2> perims = allIsoPerims[i];
+            if (i == 0)
+            { //midpoint not in poly
+                if (!GeometryFuncs.IsPointInPoly(midpoint, perims.ToArray()))
+                {
+                    if (debugSwitch) GD.PrintS("midpoint " + midpoint + " not in perimeter?");
+                    return false;
+                }
+            }
+            else
+            { //midpoint in hole
+                if (GeometryFuncs.IsPointInPoly(midpoint, perims.ToArray()))
+                {
+                    if (debugSwitch)
+                    {
+                        GD.PrintS("midpoint " + midpoint + " in hole with perims:");
+                        foreach (Vector2 vertex in perims)
+                        {
+                            GD.PrintS(vertex);
+                        }
+                    }
+                    
+                    return false;
+                }
+            }
+            for (int j = 0; j < perims.Count - 1; j++) //i < perims.Count - 1 because perims[0] = perims[last]
+            { //if segment does not contain a part of the polygon's perimeter(s)
+                Vector2 perimVertexA = perims[j];
+                Vector2 perimVertexB = perims[j + 1];
                 if (GeometryFuncs.DoSegmentsOverlap(pointA, pointB, perimVertexA, perimVertexB))
                 { //segment confirmed to contain part of polygon's perimeter(s)
                     return false;
+                }
+
+                if (perimVertexA != pointA && perimVertexA != pointB && perimVertexB != pointA &&
+                    perimVertexB != pointB)
+                {
+                    if (GeometryFuncs.DoSegmentsIntersect(pointA, pointB, perimVertexA, perimVertexB))
+                    { //segment intersects part of perimeter
+                        return false;
+                    }
                 }
             }
         }
@@ -167,13 +224,13 @@ public static class ComplexPolygonDecomposer
     /// </summary>
     /// <param name="chords">List of chords in polygon.</param>
     /// <returns>A dictionary that maps Bipartite Graph Nodes to Chords.</returns>
-    private static SCol.Dictionary<BipartiteGraphNode, Chord> _ConvertChordsToNodes(SCol.IReadOnlyList<Chord> chords)
+    private static Dictionary<BipartiteGraphNode, Chord> _ConvertChordsToNodes(IReadOnlyList<Chord> chords)
     {
-        var bipartiteNodeToChords = new SCol.Dictionary<BipartiteGraphNode, Chord>();
+        var bipartiteNodeToChords = new Dictionary<BipartiteGraphNode, Chord>();
         for (int i = 0; i < chords.Count; i++)
         {
             Chord chord = chords[i];
-            var connectedNodeIDs = new SCol.List<int>();
+            var connectedNodeIDs = new List<int>();
             for (int j = 0; j < chords.Count; j++)
             {
                 Chord comparisonChord = chords[j];
@@ -196,34 +253,82 @@ public static class ComplexPolygonDecomposer
     /// Given the polygon perimeters and its drawn chords, construct nodes out of each vertex and lists of each of their
     /// connected edges into a list of the class ChordSplittingGraphNode which will be used to split the polygon into
     /// chordless polygons.
+    /// A special case exists where any vertex with four connections needs to be split into two vertices with two
+    /// connections each, because this only happens when a hole shares a vertex with a concave vertex on the outer
+    /// perimeter, and NOT splitting them would cause PolygonSplittingGraph to put them in the same ConnectedNodeGroup
+    /// (thus losing a hole later down the line).
     /// </summary>
     /// <param name="allIsoPerims">Array of lists describing the polygon perimeters.</param>
     /// <param name="bipartiteNodeToChords">Map of all BipartiteNodes to Chords.</param>
     /// <param name="maxIndependentSet">MIS of BipartiteNodes which contains WHICH chords we should 'draw'.</param>
     /// <returns>A list of ChordSplittingGraphNodes that describe each vertex of the polygon (with chords included).</returns>
-    private static SCol.List<PolygonSplittingGraphNode> _ConstructPolygonSplittingNodes(SCol.List<Vector2>[] allIsoPerims,
-                                                                                    SCol.Dictionary<BipartiteGraphNode, Chord> bipartiteNodeToChords,
-                                                                                    SCol.HashSet<BipartiteGraphNode> maxIndependentSet)
+    private static List<PolygonSplittingGraphNode> _ConstructPolygonSplittingNodes(List<Vector2>[] allIsoPerims,
+                                                                                   Dictionary<BipartiteGraphNode, Chord> bipartiteNodeToChords,
+                                                                                   HashSet<BipartiteGraphNode> maxIndependentSet)
     {
-        var polygonSplittingNodes = new SCol.List<PolygonSplittingGraphNode>();
-        var vertexToID = new SCol.Dictionary<Vector2, int>();
+        var polygonSplittingNodes = new List<PolygonSplittingGraphNode>();
+        var vertexToID = new Dictionary<PerimVertex, int>();
         int nodeID = 0;
-        foreach (SCol.List<Vector2> perim in allIsoPerims)
+        for (int perimID = 0; perimID < allIsoPerims.Length; perimID++)
         { //to store IDs for vertices because we need to know their connections before we can init them as graph nodes
+            List<Vector2> perim = allIsoPerims[perimID];
             for (int i = 0; i < perim.Count - 1; i++)
             {
-                Vector2 vertex = perim[i];
+                var vertex = new PerimVertex(perim[i], perimID);
+                if (vertexToID.ContainsKey(vertex)) continue;
                 vertexToID.Add(vertex, nodeID);
                 nodeID++;
             }
         }
 
-        SCol.SortedList<int, SCol.List<int>> nodeConnectionsByID = _FindVertexConnections(allIsoPerims, bipartiteNodeToChords, maxIndependentSet, vertexToID);
-        foreach (Vector2 vertex in vertexToID.Keys)
+        (SortedList<int, List<int>> nodeConnectionsByID, Dictionary<Vector2, int> extraVertexToID) =
+            _FindVertexConnections(allIsoPerims, bipartiteNodeToChords, maxIndependentSet, vertexToID);
+        //update nodeConnsByID with any extraVertexIDs
+        /*foreach (Vector2 vertex in extraVertexToID.Keys) //128, 192
         {
-            int vertexID = vertexToID[vertex];
-            var chordSplittingNode = new PolygonSplittingGraphNode(vertexID, nodeConnectionsByID[vertexID], vertex.x, vertex.y);
+            int extraID = extraVertexToID[vertex]; //12
+            int pairID = vertexToID[vertex]; //9
+            foreach (int connID in nodeConnectionsByID[extraID]) 
+            {
+                if (vertexToID.ContainsValue(connID))
+                {
+                    if (nodeConnectionsByID[connID].Contains(pairID))
+                    {
+                        nodeConnectionsByID[connID].Remove(pairID);
+                        nodeConnectionsByID[connID].Add(extraID);
+                    }
+                }
+                if (extraVertexToID.ContainsValue(connID))
+                {
+                    if (nodeConnectionsByID[connID].Contains(pairID))
+                    {
+                        nodeConnectionsByID[connID].Remove(pairID);
+                        nodeConnectionsByID[connID].Add(extraID);
+                    }
+                }
+            }
+        }*/
+        
+        foreach (PerimVertex perimVertex in vertexToID.Keys)
+        {
+            int vertexID = vertexToID[perimVertex];
+            var chordSplittingNode = new PolygonSplittingGraphNode(vertexID, nodeConnectionsByID[vertexID], perimVertex.vertex.x, perimVertex.vertex.y);
             polygonSplittingNodes.Add(chordSplittingNode);
+        }
+        /*foreach (Vector2 vertex in extraVertexToID.Keys)
+        {
+            int extraID = extraVertexToID[vertex];
+            var chordSplittingNode = new PolygonSplittingGraphNode(extraID, nodeConnectionsByID[extraID], vertex.x, vertex.y);
+            polygonSplittingNodes.Add(chordSplittingNode);
+        }*/
+        
+        foreach (PolygonSplittingGraphNode node in polygonSplittingNodes)
+        {
+            GD.PrintS("node present at : " + node.id + " with coords: " + node.x + ", " + node.y);
+            foreach (int id in node.connectedNodeIDs)
+            {
+                GD.PrintS("connected to node with id: " + id);
+            }
         }
         return polygonSplittingNodes;
     }
@@ -231,23 +336,28 @@ public static class ComplexPolygonDecomposer
     /// <summary>
     /// Given the polygon perimeters and drawn chords, constructs lists for each vertex containing the ID of every vertex
     /// that they are connected to via a drawn line (AKA edge or chord).
+    /// Special care is made to prevent vertices from having four connections, so vertices are divided into two vertices
+    /// with two connections each.
     /// </summary>
     /// <param name="allIsoPerims">Array of lists describing the polygon perimeters.</param>
     /// <param name="bipartiteNodeToChords">Map of all BipartiteNodes to Chords.</param>
     /// <param name="maxIndependentSet">MIS of BipartiteNodes which contains WHICH chords we should 'draw'.</param>
     /// <param name="vertexToID">Dictionary mapping vertices to an ID.</param>
     /// <returns>Lists of connected IDs for every vertex.</returns>
-    private static SCol.SortedList<int, SCol.List<int>> _FindVertexConnections(SCol.List<Vector2>[] allIsoPerims,
-                                                                               SCol.Dictionary<BipartiteGraphNode, Chord> bipartiteNodeToChords,
-                                                                               SCol.HashSet<BipartiteGraphNode> maxIndependentSet,
-                                                                               SCol.Dictionary<Vector2, int> vertexToID)
+    private static (SortedList<int, List<int>>, Dictionary<Vector2, int>) _FindVertexConnections(List<Vector2>[] allIsoPerims,
+                                                                     Dictionary<BipartiteGraphNode, Chord> bipartiteNodeToChords,
+                                                                     HashSet<BipartiteGraphNode> maxIndependentSet,
+                                                                     Dictionary<PerimVertex, int> vertexToID)
     {
-        var nodeConnectionsByID = new SCol.SortedList<int, SCol.List<int>>();
-        foreach (SCol.List<Vector2> perim in allIsoPerims)
-        {
+        int nodeID = vertexToID.Count;
+        var extraVertexToID = new Dictionary<Vector2, int>();
+        var nodeConnectionsByID = new SortedList<int, List<int>>();
+        for (int perimID = 0; perimID < allIsoPerims.Length; perimID++)
+        { 
+            List<Vector2> perim = allIsoPerims[perimID];
             for (int i = 0; i < perim.Count - 1; i++)
             { //Add polygon edges first
-                var thisNodesConnections = new SCol.List<int>();
+                var thisNodesConnections = new List<int>();
                 Vector2 vertex = perim[i];
                 Vector2 prevVertex;
                 Vector2 nextVertex;
@@ -261,24 +371,73 @@ public static class ComplexPolygonDecomposer
                     prevVertex = perim[perim.Count - 2];
                     nextVertex = perim[1];
                 }
-                thisNodesConnections.Add(vertexToID[prevVertex]);
-                thisNodesConnections.Add(vertexToID[nextVertex]);
-                int vertexID = vertexToID[vertex];
+                thisNodesConnections.Add(vertexToID[new PerimVertex(prevVertex, perimID)]);
+                thisNodesConnections.Add(vertexToID[new PerimVertex(nextVertex, perimID)]);
+                int vertexID = vertexToID[new PerimVertex(vertex, perimID)];
                 nodeConnectionsByID.Add(vertexID, thisNodesConnections);
+                /*if (!nodeConnectionsByID.ContainsKey(vertexID))
+                {
+                    nodeConnectionsByID.Add(vertexID, thisNodesConnections);
+                }
+                else
+                {
+                    extraVertexToID[vertex] = nodeID;
+                    nodeConnectionsByID[nodeID] = thisNodesConnections;
+                    nodeID++;
+                }*/
             }
         }
 
         foreach (BipartiteGraphNode bipartiteNode in maxIndependentSet)
         { //add chords to connected nodes
             Chord chord = bipartiteNodeToChords[bipartiteNode];
-            Vector2 vertexA = chord.a;
-            Vector2 vertexB = chord.b;
-            int idA = vertexToID[vertexA];
-            int idB = vertexToID[vertexB];
+            int idA = vertexToID[new PerimVertex(chord.a, chord.originA)];
+            int idB = vertexToID[new PerimVertex(chord.b, chord.originB)];
             nodeConnectionsByID[idA].Add(idB);
             nodeConnectionsByID[idB].Add(idA);
         }
-        return nodeConnectionsByID;
+        return (nodeConnectionsByID, extraVertexToID);
+    }
+
+    /// <summary>
+    /// Given an input vertex with four node connections, split into two groups of node connections based on which
+    /// appear together in the same perimeter in <param>allIsoPerims</param>.
+    /// </summary>
+    /// <param name="thisNodesConnections">List representing four node connections.</param>
+    /// <param name="vertex"></param>
+    /// <param name="allIsoPerims"></param>
+    /// <param name="idToVertex">Map of IDs to vertices.</param>
+    /// <returns></returns>
+    private static (List<int>, List<int>) _Divide4ConnInto2(List<int> thisNodesConnections, Vector2 vertex,
+                                                            List<Vector2>[] allIsoPerims, Dictionary<Vector2, int> vertexToID)
+    {
+        var allConns = new HashSet<int>(thisNodesConnections);
+        var splitConns1 = new HashSet<int>();
+        var splitConns2 = new HashSet<int>();
+        bool found = false;
+        
+        foreach (List<Vector2> perim in allIsoPerims)
+        {
+            for (int i = 0; i < perim.Count - 1; i++)
+            {
+                Vector2 thisVertex = perim[i];
+                Vector2 nextVertex = perim[i + 1];
+                if (thisVertex == vertex)
+                {
+                    Vector2 prevVertex;
+                    if (i == 0) prevVertex = perim[perim.Count - 2];
+                    else prevVertex = perim[i - 1];
+                    splitConns1.Add(vertexToID[prevVertex]);
+                    splitConns1.Add(vertexToID[nextVertex]);
+                    found = true;
+                    break;
+                }
+            }
+            if (found) break;
+        }
+        allConns.ExceptWith(splitConns1);
+        splitConns2 = allConns;
+        return (splitConns1.ToList(), splitConns2.ToList());
     }
 }
 }

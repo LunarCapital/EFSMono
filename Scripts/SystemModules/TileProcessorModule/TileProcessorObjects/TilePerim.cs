@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using EFSMono.Scripts.Autoload;
-using EFSMono.Scripts.DataStructures.Geometry;
 using Godot;
 
 namespace EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects

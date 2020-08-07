@@ -1,6 +1,6 @@
 using System;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.SystemModules.GeneralUtilities
 {
@@ -13,10 +13,10 @@ namespace EFSMono.Scripts.SystemModules.GeneralUtilities
 /// are several classes (such as LedgeBuilder and LedgeSuperimposer) rely on the
 /// above conditions being true.
 /// </summary>
-public class TileMapList : SCol.SortedList<int, TileMap>
+public class TileMapList : SortedList<int, TileMap>
 {
 
-    public TileMapList(SCol.ICollection<TileMap> tileMaps) {
+    public TileMapList(ICollection<TileMap> tileMaps) {
         foreach (TileMap tileMap in tileMaps) {
             this.Add(tileMap.ZIndex, tileMap);
         }

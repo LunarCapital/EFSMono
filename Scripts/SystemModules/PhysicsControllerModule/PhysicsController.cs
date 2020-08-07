@@ -5,7 +5,7 @@ using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Led
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Perimeter;
 using Godot;
 using TinyMessenger;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.SystemModules.PhysicsControllerModule {
 /// <summary>
@@ -27,12 +27,12 @@ public class PhysicsController
     //Variables
     private readonly TinyMessengerHub _toEntityHub;
     
-    public SCol.Dictionary<TileMap, RID> tileMapToFloorArea2Ds;
-    public SCol.Dictionary<TileMap, RID> tileMapToWallSB2Ds;
-    public SCol.Dictionary<TileMap, RID> tileMapToLedgeSB2Ds;
-    public SCol.Dictionary<RID, SCol.List<ConvexPolygonShape2D>> floorArea2DToPolygons;
-    public SCol.Dictionary<RID, SCol.List<SegmentShape2D>> wallSB2DToSegments;
-    public SCol.Dictionary<RID, SCol.List<SegmentShape2D>> ledgeSB2DToSegments;
+    public Dictionary<TileMap, RID> tileMapToFloorArea2Ds;
+    public Dictionary<TileMap, RID> tileMapToWallSB2Ds;
+    public Dictionary<TileMap, RID> tileMapToLedgeSB2Ds;
+    public Dictionary<RID, List<ConvexPolygonShape2D>> floorArea2DToPolygons;
+    public Dictionary<RID, List<SegmentShape2D>> wallSB2DToSegments;
+    public Dictionary<RID, List<SegmentShape2D>> ledgeSB2DToSegments;
     //TODO evaluate whether it is required that these are public and set to private if they are not
 
     //Delegates
@@ -43,12 +43,12 @@ public class PhysicsController
     public PhysicsController(TinyMessengerHub toEntityHub)
     {
         this._toEntityHub = toEntityHub;
-        this.tileMapToFloorArea2Ds = new SCol.Dictionary<TileMap, RID>();
-        this.tileMapToWallSB2Ds = new SCol.Dictionary<TileMap, RID>();
-        this.tileMapToLedgeSB2Ds = new SCol.Dictionary<TileMap, RID>();
-        this.floorArea2DToPolygons = new SCol.Dictionary<RID, SCol.List<ConvexPolygonShape2D>>();
-        this.wallSB2DToSegments = new SCol.Dictionary<RID, SCol.List<SegmentShape2D>>();
-        this.ledgeSB2DToSegments = new SCol.Dictionary<RID, SCol.List<SegmentShape2D>>();
+        this.tileMapToFloorArea2Ds = new Dictionary<TileMap, RID>();
+        this.tileMapToWallSB2Ds = new Dictionary<TileMap, RID>();
+        this.tileMapToLedgeSB2Ds = new Dictionary<TileMap, RID>();
+        this.floorArea2DToPolygons = new Dictionary<RID, List<ConvexPolygonShape2D>>();
+        this.wallSB2DToSegments = new Dictionary<RID, List<SegmentShape2D>>();
+        this.ledgeSB2DToSegments = new Dictionary<RID, List<SegmentShape2D>>();
     }
 
     /// <summary>
@@ -80,21 +80,21 @@ public class PhysicsController
     /// </summary>
     private void _FreeRIDs()
     {
-        var allRIDs = new SCol.List<RID>();
+        var allRIDs = new List<RID>();
         allRIDs.AddRange(this.tileMapToFloorArea2Ds.Values);
         allRIDs.AddRange(this.tileMapToWallSB2Ds.Values);
         allRIDs.AddRange(this.tileMapToLedgeSB2Ds.Values);
-        foreach (SCol.List<ConvexPolygonShape2D> polygons in this.floorArea2DToPolygons.Values)
+        foreach (List<ConvexPolygonShape2D> polygons in this.floorArea2DToPolygons.Values)
         {
             allRIDs.AddRange(polygons.ConvertAll(x => x.GetRid()));
         }
 
-        foreach (SCol.List<SegmentShape2D> segments in this.wallSB2DToSegments.Values)
+        foreach (List<SegmentShape2D> segments in this.wallSB2DToSegments.Values)
         {
             allRIDs.AddRange(segments.ConvertAll(x => x.GetRid()));
         }
 
-        foreach (SCol.List<SegmentShape2D> segments in this.ledgeSB2DToSegments.Values)
+        foreach (List<SegmentShape2D> segments in this.ledgeSB2DToSegments.Values)
         {
             allRIDs.AddRange(segments.ConvertAll(x => x.GetRid()));
         }

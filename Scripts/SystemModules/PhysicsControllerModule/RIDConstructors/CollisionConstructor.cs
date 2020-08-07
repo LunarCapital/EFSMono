@@ -5,7 +5,7 @@ using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Ledge;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Perimeter;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.SystemModules.PhysicsControllerModule.RIDConstructors {
 /// <summary>
@@ -16,9 +16,9 @@ public static class CollisionConstructor
 {
     public enum StaticBodyOrigin {WALL = 0, LEDGE = 1};
 
-    public static SCol.Dictionary<TileMap, RID> ConstructTileMapFloorMap(this TileMapList tileMaps, RID worldSpace)
+    public static Dictionary<TileMap, RID> ConstructTileMapFloorMap(this TileMapList tileMaps, RID worldSpace)
     {
-        var tileMapToFloorArea2D = new SCol.Dictionary<TileMap, RID>();
+        var tileMapToFloorArea2D = new Dictionary<TileMap, RID>();
         foreach (TileMap tileMap in tileMaps.Values)
         {
             RID area2d = Physics2DServer.AreaCreate();
@@ -36,9 +36,9 @@ public static class CollisionConstructor
     /// <param name="tileMaps">List of TileMaps.</param>
     /// <param name="worldSpace">RID of the World Space.</param>
     /// <returns>A Dictionary that maps TileMaps to an RID of a StaticBody2D.</returns>
-    public static SCol.Dictionary<TileMap, RID> ConstructTileMapCollisionMap(this TileMapList tileMaps, RID worldSpace)
+    public static Dictionary<TileMap, RID> ConstructTileMapCollisionMap(this TileMapList tileMaps, RID worldSpace)
     {
-        var tileMapToSB2Ds = new SCol.Dictionary<TileMap, RID>();
+        var tileMapToSB2Ds = new Dictionary<TileMap, RID>();
         foreach (TileMap tileMap in tileMaps.Values)
         {
             RID edgeSB2D = Physics2DServer.BodyCreate();
@@ -59,17 +59,17 @@ public static class CollisionConstructor
     /// <param name="ledgeData">Data of all ledges of all TileMaps.</param>
     /// <param name="option">Whether this function is being used to construct segments for walls or ledges.</param>
     /// <returns>A dictionary that maps a TileMap's SB2D RID to said TileMap's walls.</returns>
-    public static SCol.Dictionary<RID, SCol.List<SegmentShape2D>> ConstructSB2DSegments(this TileMapList tileMaps,
-                                                                       SCol.Dictionary<TileMap, RID> tileMapToSB2Ds,
-                                                                       PerimeterData perimData,
-                                                                       LedgeData ledgeData,
-                                                                       StaticBodyOrigin option)
+    public static Dictionary<RID, List<SegmentShape2D>> ConstructSB2DSegments(this TileMapList tileMaps,
+                                                                              Dictionary<TileMap, RID> tileMapToSB2Ds,
+                                                                              PerimeterData perimData,
+                                                                              LedgeData ledgeData,
+                                                                              StaticBodyOrigin option)
     {
-        var sb2dToSegments = new SCol.Dictionary<RID, SCol.List<SegmentShape2D>>();
+        var sb2dToSegments = new Dictionary<RID, List<SegmentShape2D>>();
         foreach (TileMap tileMap in tileMaps.Values)
         {
             RID wall = tileMapToSB2Ds[tileMap];
-            SCol.List<SegmentShape2D> segments = (option == StaticBodyOrigin.WALL) ?
+            List<SegmentShape2D> segments = (option == StaticBodyOrigin.WALL) ?
                                                   _GetWallSegments(tileMaps, tileMap, perimData) :
                                                   _GetLedgeSegments(tileMaps, tileMap, ledgeData);
             sb2dToSegments.Add(wall, segments);
@@ -95,9 +95,9 @@ public static class CollisionConstructor
     /// <param name="thisTileMap">The TileMap that this function is getting walls for.</param>
     /// <param name="perimData">Data of all perimeters of all TileMaps in the currently loaded world.</param>
     /// <returns>A List of SegmentShape2Ds that contain every segment that make up every wall in thisTileMap.</returns>
-    private static SCol.List<SegmentShape2D> _GetWallSegments(TileMapList tileMaps, TileMap thisTileMap, PerimeterData perimData)
+    private static List<SegmentShape2D> _GetWallSegments(TileMapList tileMaps, TileMap thisTileMap, PerimeterData perimData)
     {
-        var allSegments = new SCol.List<SegmentShape2D>();
+        var allSegments = new List<SegmentShape2D>();
         if (thisTileMap == tileMaps.Last()) return allSegments; //there are never walls on the highest TileMap
         
         int nextIndex = thisTileMap.ZIndex + 1;
@@ -109,7 +109,7 @@ public static class CollisionConstructor
             for (int holeGroup = 0; holeGroup < maxHoleGroups; holeGroup++)
             {
                 EdgeCollection<TileEdge> wallColl = perimData.GetEdgeCollection(nextTileMap, tileGroup, holeGroup);
-                SCol.IEnumerable<SegmentShape2D> thisWallSegments = _ShiftSegmentsDown(_EdgeCollToSegments(wallColl));
+                IEnumerable<SegmentShape2D> thisWallSegments = _ShiftSegmentsDown(_EdgeCollToSegments(wallColl));
                 allSegments.AddRange(thisWallSegments);
             }
         }
@@ -125,9 +125,9 @@ public static class CollisionConstructor
     /// <param name="thisTileMap">The TileMap this function is getting ledges for.</param>
     /// <param name="ledgeData">Data of all ledges of all TileMaps.</param>
     /// <returns>A list of SegmentShape2Ds that contain every segment of every ledge that is on thisTileMap.</returns>
-    private static SCol.List<SegmentShape2D> _GetLedgeSegments(TileMapList tileMaps, TileMap thisTileMap, LedgeData ledgeData)
+    private static List<SegmentShape2D> _GetLedgeSegments(TileMapList tileMaps, TileMap thisTileMap, LedgeData ledgeData)
     {
-        var allSegments = new SCol.List<SegmentShape2D>();
+        var allSegments = new List<SegmentShape2D>();
         for (int zIndex = 0; zIndex <= thisTileMap.ZIndex; zIndex++)
         {
             TileMap baseTileMap = tileMaps[zIndex];
@@ -141,7 +141,7 @@ public static class CollisionConstructor
                     for (int ledgeGroup = 0; ledgeGroup < maxLedgeGroups; ledgeGroup++)
                     {
                         EdgeCollection<TileEdge> ledgeColl = ledgeData.GetLedgeCollection(baseTileMap, tileGroup, holeGroup, thisTileMap, ledgeGroup);
-                        SCol.IEnumerable<SegmentShape2D> thisLedgeSegments = _EdgeCollToSegments(ledgeColl);
+                        IEnumerable<SegmentShape2D> thisLedgeSegments = _EdgeCollToSegments(ledgeColl);
                         allSegments.AddRange(thisLedgeSegments);
                     }
                 }
@@ -156,10 +156,10 @@ public static class CollisionConstructor
     /// </summary>
     /// <param name="edgeColl">EdgeCollection to be converted to a list of segments</param>
     /// <returns>A list of segments that make up the edges in the input EdgeCollection</returns>
-    private static SCol.IEnumerable<SegmentShape2D> _EdgeCollToSegments(EdgeCollection<TileEdge> edgeColl)
+    private static IEnumerable<SegmentShape2D> _EdgeCollToSegments(EdgeCollection<TileEdge> edgeColl)
     {
-        var segments = new SCol.List<SegmentShape2D>();
-        SCol.List<Vector2> simplifiedPolygon = edgeColl.GetSimplifiedPerim();
+        var segments = new List<SegmentShape2D>();
+        List<Vector2> simplifiedPolygon = edgeColl.GetSimplifiedPerim();
         for (int thisIndex = 1; thisIndex < simplifiedPolygon.Count; thisIndex++)
         {
             int prevIndex = thisIndex - 1;
@@ -179,9 +179,9 @@ public static class CollisionConstructor
     /// </summary>
     /// <param name="segments">Segments that are being shifted down.</param>
     /// <returns>A clone of the segments list input, but shifted down.</returns>
-    private static SCol.IEnumerable<SegmentShape2D> _ShiftSegmentsDown(SCol.IEnumerable<SegmentShape2D> segments)
+    private static IEnumerable<SegmentShape2D> _ShiftSegmentsDown(IEnumerable<SegmentShape2D> segments)
     {
-        var segmentsClone = new SCol.List<SegmentShape2D>(segments);
+        var segmentsClone = new List<SegmentShape2D>(segments);
         foreach (SegmentShape2D segment in segmentsClone)
         {
             segment.A += new Vector2(0, Globals.TILE_HEIGHT);

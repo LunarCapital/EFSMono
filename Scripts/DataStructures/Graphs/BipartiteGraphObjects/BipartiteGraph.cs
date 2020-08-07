@@ -1,4 +1,4 @@
-﻿using SCol = System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
 namespace EFSMono.Scripts.DataStructures.Graphs.BipartiteGraphObjects
@@ -9,13 +9,13 @@ namespace EFSMono.Scripts.DataStructures.Graphs.BipartiteGraphObjects
 /// </summary>
 public class BipartiteGraph : GenericGraph<BipartiteGraphNode>
 {
-    public SCol.HashSet<int> leftNodeIDs { get; }
-    public SCol.HashSet<int> rightNodeIDs { get; }
+    public HashSet<int> leftNodeIDs { get; }
+    public HashSet<int> rightNodeIDs { get; }
 
-    public BipartiteGraph(SCol.IReadOnlyCollection<BipartiteGraphNode> nodeCollection) : base(nodeCollection)
+    public BipartiteGraph(IReadOnlyCollection<BipartiteGraphNode> nodeCollection) : base(nodeCollection)
     {
-        this.leftNodeIDs = new SCol.HashSet<int>();
-        this.rightNodeIDs = new SCol.HashSet<int>();
+        this.leftNodeIDs = new HashSet<int>();
+        this.rightNodeIDs = new HashSet<int>();
         foreach (BipartiteGraphNode node in nodeCollection)
         {
             if (node.side == BipartiteGraphNode.BipartiteSide.LEFT)
@@ -38,15 +38,15 @@ public class BipartiteGraph : GenericGraph<BipartiteGraphNode>
     /// Voila, MVC.
     /// </summary>
     /// <returns>The Max Vertex Cover, in a hashset containing BipartiteNodes.</returns>
-    public SCol.HashSet<BipartiteGraphNode> GetMaxVertexCover()
+    public HashSet<BipartiteGraphNode> GetMaxVertexCover()
     {
-        SCol.Dictionary<BipartiteGraphNode, BipartiteGraphNode> maxMatching = this.GetMaxMatching();
-        SCol.List<BipartiteGraphNode> excludedLeftNodes = leftNodeIDs.Select(leftNodeID => this.nodes[leftNodeID])
+        Dictionary<BipartiteGraphNode, BipartiteGraphNode> maxMatching = this.GetMaxMatching();
+        List<BipartiteGraphNode> excludedLeftNodes = leftNodeIDs.Select(leftNodeID => this.nodes[leftNodeID])
             .Where(leftNode => !maxMatching.ContainsKey(leftNode)).ToList();
-        SCol.List<BipartiteGraphNode> dfsCover = this.GetDFSCover(excludedLeftNodes);
+        List<BipartiteGraphNode> dfsCover = this.GetDFSCover(excludedLeftNodes);
         
         //Find Max Vertex Cover (right side visited, left side unvisited of DFS cover)
-        var maxVertexCover = new SCol.HashSet<BipartiteGraphNode>();
+        var maxVertexCover = new HashSet<BipartiteGraphNode>();
         foreach (int rightNodeID in this.rightNodeIDs.Where(rightNodeID => dfsCover.Contains(this.nodes[rightNodeID])))
         { //add right-side nodes included in DFS cover to MVC
             maxVertexCover.Add(this.nodes[rightNodeID]);
@@ -63,10 +63,10 @@ public class BipartiteGraph : GenericGraph<BipartiteGraphNode>
     /// Returns the Max Independent Set, which is the conjugate of the Max Vertex Cover.
     /// </summary>
     /// <returns>A HashSet consisting of the MIS.</returns>
-    public SCol.HashSet<BipartiteGraphNode> GetMaxIndependentSet()
+    public HashSet<BipartiteGraphNode> GetMaxIndependentSet()
     {
-        SCol.HashSet<BipartiteGraphNode> maxVertexCover = this.GetMaxVertexCover();
-        var maxIndependentSet = new SCol.HashSet<BipartiteGraphNode>(this.nodes.Values);
+        HashSet<BipartiteGraphNode> maxVertexCover = this.GetMaxVertexCover();
+        var maxIndependentSet = new HashSet<BipartiteGraphNode>(this.nodes.Values);
         maxIndependentSet.ExceptWith((maxVertexCover));
         return maxIndependentSet;
     }

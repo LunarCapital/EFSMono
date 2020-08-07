@@ -3,7 +3,7 @@ using EFSMono.Scripts.Autoload;
 using EFSMono.Scripts.DataStructures.Geometry;
 using EFSMono.Scripts.SystemModules.GeneralUtilities;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Perimeter
 {
@@ -23,14 +23,14 @@ public static class PerimeterBuilder
     /// <summary>
     /// Builds perimeters, packs into a dictionary of tilemaps -> List of EdgeCollections, and returns.
     /// </summary>
-    public static SCol.Dictionary<TileMap, SCol.List<EdgeCollection<TileEdge>>> BuildPerimeter(this TileMapList tileMaps)
+    public static Dictionary<TileMap, List<EdgeCollection<TileEdge>>> BuildPerimeter(this TileMapList tileMaps)
     {
-        var tileMapToAllEdgeCollections = new SCol.Dictionary<TileMap, SCol.List<EdgeCollection<TileEdge>>>();
+        var tileMapToAllEdgeCollections = new Dictionary<TileMap, List<EdgeCollection<TileEdge>>>();
 
         foreach (TileMap tileMap in tileMaps.Values)
         {
-            SCol.List<TilePerim> tilePerims = _FillTiles(tileMap);
-            SCol.Dictionary<int, SCol.HashSet<int>> adjMatrix = _InitAdjMatrix(tilePerims);
+            List<TilePerim> tilePerims = _FillTiles(tileMap);
+            Dictionary<int, HashSet<int>> adjMatrix = _InitAdjMatrix(tilePerims);
 
             //recursive flood fill to find tile groups
             int maxColor = 0;
@@ -39,7 +39,7 @@ public static class PerimeterBuilder
                 tilePerims = _TileFloodFill(adjMatrix, tilePerims, tilePerim, maxColor);
                 maxColor++; //i could put this on the prev line 
             }
-            SCol.List<EdgeCollection<TileEdge>> allEdgeCollections = _FillEdgeCollections(tilePerims, maxColor);
+            List<EdgeCollection<TileEdge>> allEdgeCollections = _FillEdgeCollections(tilePerims, maxColor);
             tileMapToAllEdgeCollections.Add(tileMap, allEdgeCollections);
         }
         return tileMapToAllEdgeCollections;
@@ -50,10 +50,10 @@ public static class PerimeterBuilder
     /// </summary>
     /// <param name="tileMap">The TileMap which we are grabbing tiles from</param>
     /// <returns>A list containing the TilePerims in the input TileMap</returns>
-    private static SCol.List<TilePerim> _FillTiles(TileMap tileMap)
+    private static List<TilePerim> _FillTiles(TileMap tileMap)
     {
-        var tilePerims = new SCol.List<TilePerim>();
-        var usedCells = new SCol.List<Vector2>(tileMap.GetUsedCells().OfType<Vector2>()); //thanks to godot's C# api array being non-typed i have to commit this atrocity
+        var tilePerims = new List<TilePerim>();
+        var usedCells = new List<Vector2>(tileMap.GetUsedCells().OfType<Vector2>()); //thanks to godot's C# api array being non-typed i have to commit this atrocity
 
         for (int i = 0; i < usedCells.Count; i++)
         {
@@ -84,7 +84,7 @@ public static class PerimeterBuilder
     /// <param name="origVertices">NavPoly vertex coordinates.</param>
     /// <param name="originCoord">'Real' coordinate of tile's origin</param>
     /// <returns>Array of NavPoly (or original) vertex coords which have been shifted by the originCoord.</returns>
-    private static Vector2[] _ShiftVertices(SCol.IReadOnlyList<Vector2> origVertices, Vector2 originCoord)
+    private static Vector2[] _ShiftVertices(IReadOnlyList<Vector2> origVertices, Vector2 originCoord)
     {
         var shiftedVertices = new Vector2[origVertices.Count];
         for (int i = 0; i < origVertices.Count; i++)
@@ -100,12 +100,12 @@ public static class PerimeterBuilder
     /// </summary>
     /// <param name="tilePerims">List of TilePerims used to form the matrix.</param>
     /// <returns>A dictionary mapping a TilePerim's ID to a hashset of TilePerim's ID that represents an adj matrix.</returns>
-    private static SCol.Dictionary<int, SCol.HashSet<int>> _InitAdjMatrix(SCol.IReadOnlyCollection<TilePerim> tilePerims)
+    private static Dictionary<int, HashSet<int>> _InitAdjMatrix(IReadOnlyCollection<TilePerim> tilePerims)
     {
-        var adjMatrix = new SCol.Dictionary<int, SCol.HashSet<int>>();
+        var adjMatrix = new Dictionary<int, HashSet<int>>();
         foreach (TilePerim tilePerimA in tilePerims)
         {
-            adjMatrix.Add(tilePerimA.id, new SCol.HashSet<int>());
+            adjMatrix.Add(tilePerimA.id, new HashSet<int>());
             foreach (TilePerim tilePerimB in tilePerims)
             {
                 if (tilePerimA.IsTileAdjacent(tilePerimB) && tilePerimA != tilePerimB)
@@ -126,12 +126,12 @@ public static class PerimeterBuilder
     /// <param name="thisTile">The tile this function is currently 'looking' at (AKA coloring and checking neighbours)</param>
     /// <param name="color">Color that we paint tiles. Actually an integer.</param>
     /// <returns>The same TilePerim but with changed color. I chose not to modify the TilePerim within the func due to the immutability principle.</returns>
-    private static SCol.List<TilePerim> _TileFloodFill(SCol.IReadOnlyDictionary<int, SCol.HashSet<int>> adjMatrix,
-                                                       SCol.IEnumerable<TilePerim> tilePerims, TilePerim thisTile, int color)
+    private static List<TilePerim> _TileFloodFill(IReadOnlyDictionary<int, HashSet<int>> adjMatrix,
+                                                  IEnumerable<TilePerim> tilePerims, TilePerim thisTile, int color)
     {
-        var tilePerimsClone = new SCol.List<TilePerim>(tilePerims);
-        var visited = new SCol.HashSet<int>();
-        var stack = new SCol.Stack<TilePerim>();
+        var tilePerimsClone = new List<TilePerim>(tilePerims);
+        var visited = new HashSet<int>();
+        var stack = new Stack<TilePerim>();
         stack.Push(thisTile);
         visited.Add(thisTile.id);
 
@@ -158,13 +158,13 @@ public static class PerimeterBuilder
     /// <param name="tilePerims">List of tile perims.</param>
     /// <param name="maxColor">Max color that a tile can be.</param>
     /// <returns>A list of EdgeCollections, each containing EDGES from tiles of the same color (group).</returns>
-    private static SCol.List<EdgeCollection<TileEdge>> _FillEdgeCollections(SCol.IReadOnlyCollection<TilePerim> tilePerims, int maxColor)
+    private static List<EdgeCollection<TileEdge>> _FillEdgeCollections(IReadOnlyCollection<TilePerim> tilePerims, int maxColor)
     {
-        var allEdgeCollections = new SCol.List<EdgeCollection<TileEdge>>();
+        var allEdgeCollections = new List<EdgeCollection<TileEdge>>();
         for (int color = 0; color < maxColor; color++)
         {
-            var perimeter = new SCol.List<TileEdge>(); //contains edges on the OUTSIDE of tile group
-            var intersections = new SCol.List<TileEdge>(); //contains inner edges of tile group
+            var perimeter = new List<TileEdge>(); //contains edges on the OUTSIDE of tile group
+            var intersections = new List<TileEdge>(); //contains inner edges of tile group
 
             foreach (TilePerim tilePerim in tilePerims.Where(x => x.color == color))
             { //only check tilePerims of matching color
@@ -194,7 +194,7 @@ public static class PerimeterBuilder
     /// <param name="collection">Collection being checked for whether it contains Edge (but just the points).</param>
     /// <param name="edge">Edge being checked.</param>
     /// <returns>Index of identical edge in collection with matching points to the input edge, or -1 if no match found.</returns>
-    private static int _ContainsEdge(SCol.IReadOnlyList<TileEdge> collection, TileEdge edge)
+    private static int _ContainsEdge(IReadOnlyList<TileEdge> collection, TileEdge edge)
     {
         for (int i = 0; i < collection.Count; i++)
         {

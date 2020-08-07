@@ -1,6 +1,6 @@
 using System.Linq;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace EFSMono.Scripts.DataStructures.Geometry
 {
@@ -10,12 +10,12 @@ namespace EFSMono.Scripts.DataStructures.Geometry
 /// 'smoothing' them (merging collinear edges), etc.
 /// Thank god I can extend lists in C#!
 /// </summary>
-public class EdgeCollection<T> : SCol.List<T> where T : Edge
+public class EdgeCollection<T> : List<T> where T : Edge
 {
 
     //CONSTRUCTORS
     public EdgeCollection() {}
-    public EdgeCollection(SCol.IEnumerable<T> collection)
+    public EdgeCollection(IEnumerable<T> collection)
     {
         foreach (T edge in collection)
         {
@@ -62,7 +62,7 @@ public class EdgeCollection<T> : SCol.List<T> where T : Edge
     /// <returns>The same EdgeCollection but without duplicates</returns>
     public EdgeCollection<T> GetSetCollection()
     {
-        var hashSet = new SCol.HashSet<T>();
+        var hashSet = new HashSet<T>();
         var edgeSet = new EdgeCollection<T>();
         foreach (T edge in this.Where(edge => !hashSet.Contains(edge)))
         {
@@ -80,9 +80,22 @@ public class EdgeCollection<T> : SCol.List<T> where T : Edge
     public EdgeCollection<T> GetExcludedCollection(EdgeCollection<T> excludeCollection)
     {
         EdgeCollection<T> cloneCollection = this.Clone();
-        foreach (T edge in excludeCollection)
+        List<T> removeCollection = new List<T>();
+        foreach (T excludeEdge in excludeCollection)
         {
-            cloneCollection.Remove(edge);
+            foreach (T existingEdge in this)
+            {
+                if (existingEdge.a == excludeEdge.a && existingEdge.b == excludeEdge.b ||
+                    existingEdge.b == excludeEdge.a && existingEdge.a == excludeEdge.b)
+                {
+                    removeCollection.Add(existingEdge);        
+                }
+            }
+            //cloneCollection.Remove(edge);
+        }
+        foreach (T removeEdge in removeCollection)
+        {
+            cloneCollection.Remove(removeEdge);
         }
         return cloneCollection;
     }
@@ -95,9 +108,9 @@ public class EdgeCollection<T> : SCol.List<T> where T : Edge
     /// <returns>The same EdgeCollection but with ordered edges, and without disconnected groups</returns>
     public EdgeCollection<T> GetOrderedCollection()
     {
-        var orderedList = new SCol.LinkedList<T>();
+        var orderedList = new LinkedList<T>();
         this._ResetCheckedEdges();
-        SCol.List<T> unorderedEdges = this._GetUncheckedEdges();
+        List<T> unorderedEdges = this._GetUncheckedEdges();
 
         while (orderedList.Count < this.Count)
         {
@@ -109,7 +122,7 @@ public class EdgeCollection<T> : SCol.List<T> where T : Edge
             else
             {
                 T backEdge = orderedList.Last.Value;
-                var frontEdge = (T)orderedList.First.Value.GetReverseEdge(); //because GrabSharedEdge uses edge.b to find connected edge
+                var frontEdge = orderedList.First.Value.GetReverseEdge() as T; //because GrabSharedEdge uses edge.b to find connected edge
                 int edgeConnToBackID = _GrabConnectedEdgeID(unorderedEdges, backEdge);
                 int edgeConnToFrontID = _GrabConnectedEdgeID(unorderedEdges, frontEdge);
 
@@ -131,7 +144,7 @@ public class EdgeCollection<T> : SCol.List<T> where T : Edge
         }
         return new EdgeCollection<T>(orderedList);
     }
-
+    
     /// <summary>
     /// <para>
     /// Makes and returns a list of Vector2s that contain only the vertices of the shape
@@ -149,10 +162,11 @@ public class EdgeCollection<T> : SCol.List<T> where T : Edge
     /// </summary>
     /// <returns>A list of Vector2 vertices describing the shape made by the edges in this
     /// collection, OR an empty list if the edges are unordered or disconnected.</returns>
-    public SCol.List<Vector2> GetSimplifiedPerim()
+    public List<Vector2> GetSimplifiedPerim()
     {
-        var simplifiedPerim = new SCol.List<Vector2>();
-
+        var simplifiedPerim = new List<Vector2>();
+        Vector2 start = this[0].a;
+        
         foreach (T edge in this)
         {
             if (simplifiedPerim.Count == 0) //nothing added yet, just throw in both points
@@ -164,9 +178,9 @@ public class EdgeCollection<T> : SCol.List<T> where T : Edge
             {
                 if (edge.a != simplifiedPerim[simplifiedPerim.Count - 1])
                 { //UNORDERED OR DISCONNECTED EDGES
-                    return new SCol.List<Vector2>(); // return empty arr
+                    return new List<Vector2>(); // return empty arr
                 }
-                simplifiedPerim = simplifiedPerim.Count == this.Count ? 
+                simplifiedPerim = edge.b == start ? 
                                   _ProcessFinalExtension(simplifiedPerim, edge) : 
                                   _ProcessExtension(simplifiedPerim, edge);
             }
@@ -195,7 +209,7 @@ public class EdgeCollection<T> : SCol.List<T> where T : Edge
     /// Places all unchecked edges within this class into a new list.
     /// </summary>
     /// <returns>A list with all the unchecked edges within this class</returns>
-    private SCol.List<T> _GetUncheckedEdges()
+    private List<T> _GetUncheckedEdges()
     {
         return this.Where(edge => !edge.isChecked).ToList();
     }
@@ -208,7 +222,7 @@ public class EdgeCollection<T> : SCol.List<T> where T : Edge
     /// <param name="searchList">List of edges that we look for a connecting edge in</param>
     /// <param name="referenceEdge">Edge we are trying to find a connecting edge to</param>
     /// <returns>Index of an edge that connects to the reference edge's point B</returns>
-    private static int _GrabConnectedEdgeID(SCol.IReadOnlyList<T> searchList, T referenceEdge)
+    private static int _GrabConnectedEdgeID(IReadOnlyList<T> searchList, T referenceEdge)
     {
         for (int i = 0; i < searchList.Count; i++)
         {
@@ -229,9 +243,9 @@ public class EdgeCollection<T> : SCol.List<T> where T : Edge
     /// <param name="backEdge">The current last edge</param>
     /// <param name="edgeConnToBack">The edge connecting to the last edge</param>
     /// <returns>orderedList but with the new edge appended to its back</returns>
-    private static SCol.LinkedList<T> _AddBackEdge(SCol.IEnumerable<T> orderedList, T backEdge, T edgeConnToBack)
+    private static LinkedList<T> _AddBackEdge(IEnumerable<T> orderedList, T backEdge, T edgeConnToBack)
     {
-        var orderedListClone = new SCol.LinkedList<T>(orderedList); //clone seems redundant but we're following the mutability principle
+        var orderedListClone = new LinkedList<T>(orderedList); //clone seems redundant but we're following the mutability principle
         orderedListClone.AddLast(edgeConnToBack.a == backEdge.b ? 
                                  edgeConnToBack : 
                                  (T) edgeConnToBack.GetReverseEdge());
@@ -246,9 +260,9 @@ public class EdgeCollection<T> : SCol.List<T> where T : Edge
     /// <param name="frontEdge"></param>
     /// <param name="edgeConnToFront"></param>
     /// <returns></returns>
-    private static SCol.LinkedList<T> _AddFrontEdge(SCol.IEnumerable<T> orderedList, T frontEdge, T edgeConnToFront)
+    private static LinkedList<T> _AddFrontEdge(IEnumerable<T> orderedList, T frontEdge, T edgeConnToFront)
     {
-        var orderedListClone = new SCol.LinkedList<T>(orderedList);
+        var orderedListClone = new LinkedList<T>(orderedList);
         orderedListClone.AddFirst(edgeConnToFront.b == frontEdge.b ? 
                                   edgeConnToFront : 
                                   (T) edgeConnToFront.GetReverseEdge());
@@ -264,9 +278,9 @@ public class EdgeCollection<T> : SCol.List<T> where T : Edge
     /// <param name="simplifiedPerim">List containing prev edge that this func wants to look at</param>
     /// <param name="extendingEdge">The edge being added, possible extension of previous edge </param>
     /// <returns>A clone of the passed-in List parameter with the new edge appended or extended</returns>
-    private static SCol.List<Vector2> _ProcessExtension(SCol.IEnumerable<Vector2> simplifiedPerim, T extendingEdge)
+    private static List<Vector2> _ProcessExtension(IEnumerable<Vector2> simplifiedPerim, T extendingEdge)
     {
-        var simplifiedPerimClone = new SCol.List<Vector2>(simplifiedPerim);
+        var simplifiedPerimClone = new List<Vector2>(simplifiedPerim);
         Vector2 previousA = simplifiedPerimClone[simplifiedPerimClone.Count - 2];
         Vector2 previousB = simplifiedPerimClone[simplifiedPerimClone.Count - 1];
         Vector2 previousSlope = (previousB - previousA).Normalized();
@@ -295,9 +309,9 @@ public class EdgeCollection<T> : SCol.List<T> where T : Edge
     /// <param name="simplifiedPerim">List containing prev and first edge that this func wants to look at</param>
     /// <param name="finalEdge">The edge being added, possible extension of previous AND first edge</param>
     /// <returns>Clone of the passed-in List parameter with the final edge appended/extended</returns>
-    private static SCol.List<Vector2> _ProcessFinalExtension(SCol.IEnumerable<Vector2> simplifiedPerim, T finalEdge)
+    private static List<Vector2> _ProcessFinalExtension(IEnumerable<Vector2> simplifiedPerim, T finalEdge)
     {
-        var simplifiedPerimClone = new SCol.List<Vector2>(simplifiedPerim);
+        var simplifiedPerimClone = new List<Vector2>(simplifiedPerim);
         Vector2 previousA = simplifiedPerimClone[simplifiedPerimClone.Count - 2];
         Vector2 previousB = simplifiedPerimClone[simplifiedPerimClone.Count - 1];
         Vector2 firstA = simplifiedPerimClone[0];

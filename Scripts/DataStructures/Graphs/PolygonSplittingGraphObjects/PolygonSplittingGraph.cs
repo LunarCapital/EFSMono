@@ -3,7 +3,8 @@ using System.Linq;
 using EFSMono.Scripts.Autoload;
 using EFSMono.Scripts.DataStructures.Geometry;
 using Godot;
-using SCol = System.Collections.Generic;
+using System.Collections.Generic;
+using Helper = EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects.PolygonSplittingGraphGroupHelper;
 
 namespace EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects
 {
@@ -12,21 +13,36 @@ namespace EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects
 ///     1. Splitting a polygon-with-chords into chordless polygons
 ///     2. Splitting chordless polygons into rectangles
 /// This graph's nodes represent polygon vertices, and connections represent polygon edges.
-/// </summary>
+///
+/// i am now aware after hours of googling that this class would get me a position in OOP prison, so some self-notes for future:
+///     1. Constructors with logic can be replaced by GoF builder (? not sure about this one)
+///     2. could create a static class to handle some of the logic like IsCycleHole and GetNumOfNodesValidEdges
+///     3. FinalisePartition could be changed into a builder for ChordlessPolygon?
+///     4. i don't think GetMinCycles can be simplified because it's genuinely an abomination but i'll keep thinking about it
+///     5. i FOROGT about bridges holy shit that cost me so much mess
+///     6. this class plays extremely badly with nodes with 4-connections (one in each direction), so i think it's necessary to
+///        split these into two 2-conn nodes BEFORE CREATING THIS CLASS (also because I don't want to touch this thing anymore).
+/// </summary>    
 public class PolygonSplittingGraph : GenericGraph<PolygonSplittingGraphNode>
 {
-    private readonly SCol.SortedDictionary<PolygonSplittingGraphNode, int> _xySortedNodes;
-    private readonly SCol.List<Vector2>[] _holes;
-    
-    public PolygonSplittingGraph(SCol.IReadOnlyCollection<PolygonSplittingGraphNode> nodeCollection, SCol.List<Vector2>[] allIsoPerims) : base(nodeCollection)
+    private readonly SortedDictionary<PolygonSplittingGraphNode, int> _xySortedNodes;
+    private readonly List<Vector2>[] _holes;
+
+    public PolygonSplittingGraph(IReadOnlyCollection<PolygonSplittingGraphNode> nodeCollection, List<List<Vector2>> holes = null) : base(nodeCollection)
     {
-        SCol.SortedDictionary<PolygonSplittingGraphNode, int> xySortedNodes;
-        this._xySortedNodes = new SCol.SortedDictionary<PolygonSplittingGraphNode, int>();
-        foreach (SCol.KeyValuePair<int, PolygonSplittingGraphNode> idToNode in this.nodes)
+        if (holes == null) holes = new List<List<Vector2>>();
+        this._holes = holes.ToArray();
+    }
+    
+    public PolygonSplittingGraph(IReadOnlyCollection<PolygonSplittingGraphNode> nodeCollection, List<Vector2>[] allIsoPerims) : base(nodeCollection)
+    {
+        SortedDictionary<PolygonSplittingGraphNode, int> xySortedNodes;
+        this._xySortedNodes = new SortedDictionary<PolygonSplittingGraphNode, int>();
+        foreach (KeyValuePair<int, PolygonSplittingGraphNode> idToNode in this.nodes)
         {
             this._xySortedNodes.Add(idToNode.Value, idToNode.Key);
         }
-        this._holes = new SCol.List<Vector2>[allIsoPerims.Length - 1];
+        this._holes = new List<Vector2>[allIsoPerims.Length - 1];
         for (int i = 1; i < allIsoPerims.Length; i++)
         { //ignore i = 0 as it's the only non-hole perimeter
             this._holes[i - 1] = allIsoPerims[i];
@@ -38,116 +54,38 @@ public class PolygonSplittingGraph : GenericGraph<PolygonSplittingGraphNode>
     /// Can be used to get both chordless polygons and rectangles.
     /// </summary>
     /// <returns>Return a List of Lists of Vector2s, that describes the min cycles of this polygon.</returns>
-    public SCol.List<RectangularPolygon> GetMinCycles()
+    public List<ChordlessPolygon> GetMinCycles()
     {
-        SCol.List<ConnectedNodeGroup> connectedGroups = this._GetConnectedGroups();
-        connectedGroups.Sort();
-        SCol.SortedDictionary<ConnectedNodeGroup, SCol.HashSet<int>> idsContainedInGroup = this._StoreNestedGroups(connectedGroups);
-        //             2.6.5 Finding the 'Minimum Cycles' of each Node Cover using BFS.
-        //             2.6.6 Checking which of a Node Cover's Minimum Cycle contains the Outer Perimeter of its children in the
-        //                   Tree of Node Covers.
-        //             2.6.7 Denoting each Minimum Cycle as being a chord-less polygon IF it is not a hole, and denoting the
-        //                   Outer Perimeter of any Node Covers contained within a Minimum Cycle as its hole(s) (it's still
-        //                   a chord-less polygon, just with a hole(s)).
-        var minCycles = new SCol.List<RectangularPolygon>();
-        foreach (ConnectedNodeGroup connectedGroup in connectedGroups)
+        SortedList<int, ConnectedNodeGroup> connectedGroups = Helper.GetConnectedGroups(this.nodes, this.adjMatrix, this.GetDFSCover);
+        SortedDictionary<int, HashSet<int>> idsContainedInGroup = Helper.StoreNestedGroups(connectedGroups);
+
+        foreach (ConnectedNodeGroup node in connectedGroups.Values)
+        {
+            GD.PrintS("connectedgroup with id: " + node.id + " has perim: ");
+            foreach (Vector2 vertex in node.outerPerimSimplified)
+            {
+                GD.PrintS(vertex);
+            }
+            foreach (int id in node.nodes.Keys)
+            {
+                GD.PrintS("id in conn group: " + id);
+            }
+        }
+
+        foreach (int outsideID in idsContainedInGroup.Keys)
+        {
+            foreach (int insideID in idsContainedInGroup[outsideID])
+            {
+                GD.PrintS("group " + insideID + " is inside " + outsideID);
+            }
+        }
+        
+        var minCycles = new List<ChordlessPolygon>();
+        foreach (ConnectedNodeGroup connectedGroup in connectedGroups.Values)
         {
             minCycles.AddRange(this._PartitionConnectedNodeGroup(connectedGroup, idsContainedInGroup, connectedGroups));
         }
-        
-        foreach (RectangularPolygon poly in minCycles)
-        {
-            foreach (Vector2 outerVertex in poly.outerPerim)
-            {
-                GD.PrintS("outer vertex: " + outerVertex);
-            }
-            foreach (SCol.List<Vector2> hole in poly.holes)
-            {
-                GD.PrintS("hole: " + hole);
-            }
-            GD.PrintS();
-        }
         return minCycles;
-    }
-
-    /// <summary>
-    /// Finds groups of connected nodes and returns them as a list.
-    /// </summary>
-    /// <returns>A list of connected node groups in the polygon represented by this class.</returns>
-    private SCol.List<ConnectedNodeGroup> _GetConnectedGroups()
-    {
-        var connectedGroups = new SCol.List<ConnectedNodeGroup>();
-        var visited = new SCol.HashSet<PolygonSplittingGraphNode>();
-        int id = 0;
-        
-        foreach (PolygonSplittingGraphNode node in this.nodes.Values)
-        {
-            if (visited.Contains(node)) continue;
-            SCol.List<PolygonSplittingGraphNode> connectedToNode = this.GetDFSCover(new SCol.List<PolygonSplittingGraphNode>{node});
-            var groupNodes = new SCol.SortedList<int, PolygonSplittingGraphNode>();
-            foreach (PolygonSplittingGraphNode connectedNode in connectedToNode)
-            {
-                visited.Add(connectedNode);
-                groupNodes.Add(connectedNode.id, connectedNode);
-            }
-            connectedGroups.Add(new ConnectedNodeGroup(id, groupNodes, this.adjMatrix));
-            id++;
-        }
-        return connectedGroups;
-    }
-
-    /// <summary>
-    /// Creates a dictionary that stores IDs of ConnectedNodeGroups contained within each ConnectedNodeGroup.
-    /// </summary>
-    /// <param name="connectedGroups">List of ConnectedNodeGroups, sorted in order of area size, descending.</param>
-    /// <returns></returns>
-    private SCol.SortedDictionary<ConnectedNodeGroup, SCol.HashSet<int>> _StoreNestedGroups(SCol.List<ConnectedNodeGroup> connectedGroups)
-    {
-        var idsContainedInGroup = new SCol.SortedDictionary<ConnectedNodeGroup, SCol.HashSet<int>>();
-        for (int i = 0; i < connectedGroups.Count; i++)
-        {
-            ConnectedNodeGroup thisGroup = connectedGroups[i];
-            idsContainedInGroup.Add(thisGroup, new SCol.HashSet<int>());
-            for (int j = 0; j < connectedGroups.Count; j++)
-            {
-                ConnectedNodeGroup otherGroup = connectedGroups[j];
-                if (i != j && GeometryFuncs.IsPolyInPoly(thisGroup.GetOuterPerimAsVectorArray(),
-                    otherGroup.GetOuterPerimAsVectorArray()))
-                {   
-                    idsContainedInGroup[thisGroup].Add(otherGroup.id);
-                }
-            }
-        }
-        return this._SimplifyNestedGroups(idsContainedInGroup);
-    }
-
-    /// <summary>
-    ///Simplify the <param>idsConnectedInGroup></param> dictionary, which stores info on which groups are contained
-    ///in others, like so:
-    ///idsConnectedInGroup[A] = [B C D]
-    ///where group A contains B, C, and D.
-    ///    However, if D is also contained within B, then the dictionary is redundant and
-    ///should be simplified to:
-    ///idsConnectedInGroup[A] = [B C]
-    ///idsConnectedInGroup[B] = [D]
-    /// </summary>
-    /// <param name="idsContainedInGroup"></param>
-    /// <returns></returns>
-    private SCol.SortedDictionary<ConnectedNodeGroup, SCol.HashSet<int>> _SimplifyNestedGroups(
-        SCol.SortedDictionary<ConnectedNodeGroup, SCol.HashSet<int>> idsContainedInGroup)
-    {
-        var simplifiedIdsContainedInGroup = new SCol.SortedDictionary<ConnectedNodeGroup, SCol.HashSet<int>>(idsContainedInGroup);
-        foreach (ConnectedNodeGroup outsideGroup in simplifiedIdsContainedInGroup.Keys)
-        {
-            SCol.HashSet<int> connectedGroupIDs = idsContainedInGroup[outsideGroup];
-            foreach (int insideGroupID in connectedGroupIDs)
-            {
-                ConnectedNodeGroup insideGroup =
-                    idsContainedInGroup.Keys.First(x => x.id == insideGroupID);
-                simplifiedIdsContainedInGroup[outsideGroup].ExceptWith(idsContainedInGroup[insideGroup]);
-            }
-        }
-        return simplifiedIdsContainedInGroup;
     }
 
     /// <summary>
@@ -163,23 +101,24 @@ public class PolygonSplittingGraph : GenericGraph<PolygonSplittingGraphNode>
     /// <param name="idsContainedInGroup">The IDs of the ConnectedNodeGroups contained within <param>connectedGroup</param></param>
     /// <param name="connectedGroups">List of all ConnectedNodeGroups.</param>
     /// <returns></returns>
-    private SCol.List<RectangularPolygon> _PartitionConnectedNodeGroup(ConnectedNodeGroup connectedGroup,
-        SCol.SortedDictionary<ConnectedNodeGroup, SCol.HashSet<int>> idsContainedInGroup,
-        SCol.List<ConnectedNodeGroup> connectedGroups)
+    private List<ChordlessPolygon> _PartitionConnectedNodeGroup(ConnectedNodeGroup connectedGroup,
+                                                                SortedDictionary<int, HashSet<int>> idsContainedInGroup,
+                                                                SortedList<int, ConnectedNodeGroup> connectedGroups)
     {
-        var partitions = new SCol.List<RectangularPolygon>();
-        SCol.Dictionary<PolygonSplittingGraphNode, SCol.HashSet<int>> removedEdges =
-            connectedGroup.nodes.Values.ToDictionary(node => node, node => new SCol.HashSet<int>());
+        var partitions = new List<ChordlessPolygon>();
+        Dictionary<PolygonSplittingGraphNode, HashSet<int>> removedEdges = Helper.InitRemovedEdges(this.nodes, connectedGroups);
 
-        SCol.KeyValuePair<int, PolygonSplittingGraphNode> selectedIdNodePair;
-        while ((selectedIdNodePair = connectedGroup.nodes.FirstOrDefault(x =>
-                this._GetNumOfNodesValidEdges(connectedGroup, x.Value, removedEdges[x.Value]) == 2)).Value != null) //forgive me lord for the sin i have commi
+        KeyValuePair<int, PolygonSplittingGraphNode> selectedIdNodePair;
+        while ((selectedIdNodePair = connectedGroup.nodes.FirstOrDefault(x => 
+                Helper.GetNumOfNodesValidEdges(connectedGroup, x.Value, removedEdges[x.Value], 
+                                               this.adjMatrix,this.nodes) == 2)).Value != null) //forgive me lord for the sin i have commi
         { //select a node with 2 or less valid edges, and break the loop if none can be found
             try
             {
-                SCol.List<PolygonSplittingGraphNode> cycle =
+                List<PolygonSplittingGraphNode> cycle =
                     this._BFSToFindCycle(selectedIdNodePair.Value, connectedGroup, removedEdges);
                 removedEdges = this._UpdateRemovedEdges(cycle, connectedGroup, removedEdges);
+                removedEdges = Helper.AddNewBridgesToRemovedEdges(connectedGroup, this.adjMatrix, removedEdges);
                 if (this._IsCycleHole(cycle)) continue;
                 partitions.Add(_FinalisePartition(cycle, connectedGroup, connectedGroups, idsContainedInGroup));
             }
@@ -191,35 +130,12 @@ public class PolygonSplittingGraph : GenericGraph<PolygonSplittingGraphNode>
 
         foreach (PolygonSplittingGraphNode node in connectedGroup.nodes.Values)
         {
-            GD.PrintS("for node with id: " + node.id + " at coord: " + node.x + ", " + node.y + ", valid edges remaining: " + this._GetNumOfNodesValidEdges(connectedGroup, node, removedEdges[node]));
+            GD.PrintS("for node with id: " + node.id + " at coord: " + node.x + ", " + node.y + ", valid edges remaining: " + Helper.GetNumOfNodesValidEdges(connectedGroup, node, removedEdges[node], this.adjMatrix, this.nodes));
         }
-        
+
         return partitions;
     }
     
-    /// <summary>
-    /// Counts the number of valid edges a vertex has, given that:
-    ///     1. It is within a ConnectedNodeGroup and can only connect to other vertices within that group
-    ///     2. Edges that have been removed (and are in <param>removedIDs</param>) are not counted 
-    /// </summary>
-    /// <param name="connectedGroup">Group that the vertex is in.</param>
-    /// <param name="node">The node (vertex) in question.</param>
-    /// <param name="removedIDs">Set of IDs of vertices that this vertex cannot travel to, AKA removed edges.</param>
-    /// <returns>Number of valid edges the input vertex can travel to.</returns>
-    private int _GetNumOfNodesValidEdges(ConnectedNodeGroup connectedGroup, PolygonSplittingGraphNode node, 
-                                         SCol.HashSet<int> removedIDs)
-    {
-        int count = 0;
-        for (int i = 0; i < this.adjMatrix.GetLength(1); i++)
-        {
-            if (this.adjMatrix[node.id, i] == 1 && connectedGroup.ContainsNode(this.nodes[i]) && !removedIDs.Contains(i))
-            {
-                count++;
-                //GD.PrintS("found conn at from " + node.id + " to node with id: " + i + " at coord: " + connectedGroup.nodes[i].x + ", " + connectedGroup.nodes[i].y);
-            }
-        }
-        return count;
-    }
 
     /// <summary>
     /// Of a <param>startNode</param> with only two edges, removes one (denoted U->start) and uses BFS to find the
@@ -233,13 +149,14 @@ public class PolygonSplittingGraph : GenericGraph<PolygonSplittingGraphNode>
     /// <param name="removedEdges">Edges that have been removed and cannot be taken.</param>
     /// <returns>A list of Vector2s containing a cycle from <param>startNode</param> back to itself. As per the list
     /// convention list[start] == list[end].</returns>
-    private SCol.List<PolygonSplittingGraphNode> _BFSToFindCycle(PolygonSplittingGraphNode startNode, ConnectedNodeGroup connectedNodeGroup,
-                                               SCol.Dictionary<PolygonSplittingGraphNode, SCol.HashSet<int>> removedEdges)
+    private List<PolygonSplittingGraphNode> _BFSToFindCycle(PolygonSplittingGraphNode startNode, ConnectedNodeGroup connectedNodeGroup,
+                                               Dictionary<PolygonSplittingGraphNode, HashSet<int>> removedEdges)
     {
-        var discovered = new SCol.HashSet<int>();
-        var queueOfIDs = new SCol.Queue<int>();
-        SCol.Dictionary<int, int> parent = connectedNodeGroup.nodes.Values.ToDictionary(node => node.id, node => -1);
+        var discovered = new HashSet<int>();
+        var queueOfIDs = new Queue<int>();
+        Dictionary<int, int> parent = connectedNodeGroup.nodes.Values.ToDictionary(node => node.id, node => -1);
         queueOfIDs.Enqueue(startNode.id);
+        GD.PrintS("Enqueued Starting Node with id: " + startNode.id + " at location: " + startNode.x + ", " + startNode.y);
         
         //remove one of startNode's two edges (temporarily just for this method)
         int removeID = -1;
@@ -274,20 +191,25 @@ public class PolygonSplittingGraph : GenericGraph<PolygonSplittingGraphNode>
         return this._ExtractCycle(parent, startNode, removeID);
     }
 
-    private SCol.List<PolygonSplittingGraphNode> _ExtractCycle(SCol.Dictionary<int, int> parent, PolygonSplittingGraphNode startNode, int removeID)
+    private List<PolygonSplittingGraphNode> _ExtractCycle(Dictionary<int, int> parent, PolygonSplittingGraphNode startNode, int removeID)
     {
-        var cycle = new SCol.List<PolygonSplittingGraphNode>();
+        foreach (int key in parent.Keys)
+        {
+            GD.PrintS("node key: " + key + " maps to " + parent[key]);
+        }
+        
+        var cycle = new List<PolygonSplittingGraphNode>();
         int prevID = removeID;
         do
         {
             PolygonSplittingGraphNode node = this.nodes[prevID];
             cycle.Add(node);
+            GD.PrintS("Added node with id: " + node.id + " at coord: " + node.x + ", " + node.y);
             prevID = parent[prevID];
         } while (prevID != -1);
         cycle.Reverse();
         cycle.Add(startNode);
-        //cycle.ForEach(node => GD.PrintS("extracted cycle node is at coords: " + node.x + ", " + node.y));
-        cycle.Reverse();
+        cycle.ForEach(node => GD.PrintS("extracted cycle node is at coords: " + node.x + ", " + node.y));
         return cycle;
     }
 
@@ -299,14 +221,14 @@ public class PolygonSplittingGraph : GenericGraph<PolygonSplittingGraphNode>
     /// <param name="connectedGroup">Connected group of nodes.</param>
     /// <param name="removedEdges">Dictionary of edges that have been removed.</param>
     /// <returns>An updated dictionary of removed edges with the edges in cycle added if valid.</returns>
-    private SCol.Dictionary<PolygonSplittingGraphNode, SCol.HashSet<int>> _UpdateRemovedEdges(
-                SCol.List<PolygonSplittingGraphNode> cycle, ConnectedNodeGroup connectedGroup,
-                SCol.Dictionary<PolygonSplittingGraphNode, SCol.HashSet<int>> removedEdges)
+    private Dictionary<PolygonSplittingGraphNode, HashSet<int>> _UpdateRemovedEdges(
+                List<PolygonSplittingGraphNode> cycle, ConnectedNodeGroup connectedGroup,
+                Dictionary<PolygonSplittingGraphNode, HashSet<int>> removedEdges)
     {
-        var updatedRemovedEdges = new SCol.Dictionary<PolygonSplittingGraphNode, SCol.HashSet<int>>();
+        var updatedRemovedEdges = new Dictionary<PolygonSplittingGraphNode, HashSet<int>>();
         foreach (PolygonSplittingGraphNode node in removedEdges.Keys)
         {
-            updatedRemovedEdges[node] = new SCol.HashSet<int>();
+            updatedRemovedEdges[node] = new HashSet<int>();
             foreach (int id in removedEdges[node])
             {
                 updatedRemovedEdges[node].Add(id);
@@ -318,11 +240,11 @@ public class PolygonSplittingGraph : GenericGraph<PolygonSplittingGraphNode>
             PolygonSplittingGraphNode thisNode = cycle[i];
             PolygonSplittingGraphNode nextNode = cycle[(i + 1) % cycle.Count];
             if (Equals(thisNode, nextNode)) continue;
-            if (this._GetNumOfNodesValidEdges(connectedGroup, thisNode, removedEdges[thisNode]) <= 2 ||
-                this._GetNumOfNodesValidEdges(connectedGroup, nextNode, removedEdges[nextNode]) <= 2)
+            if (Helper.GetNumOfNodesValidEdges(connectedGroup, thisNode, removedEdges[thisNode], this.adjMatrix, this.nodes) <= 2 ||
+                Helper.GetNumOfNodesValidEdges(connectedGroup, nextNode, removedEdges[nextNode], this.adjMatrix, this.nodes) <= 2)
             {
                 //IFF either vertex of an edge has only two or less valid connections remaining
-                GD.PrintS("removed edge between node + " + thisNode.id + " at " + thisNode.x + ", " + thisNode.y + " which had # remaining edges: " + this._GetNumOfNodesValidEdges(connectedGroup, thisNode, removedEdges[thisNode]) +  " and node " + nextNode.id + " at " + nextNode.x + ", " + nextNode.y + " which had # remaining edges: " + this._GetNumOfNodesValidEdges(connectedGroup, nextNode, removedEdges[nextNode]));
+                GD.PrintS("removed edge between node + " + thisNode.id + " at " + thisNode.x + ", " + thisNode.y + " which had # remaining edges: " + Helper.GetNumOfNodesValidEdges(connectedGroup, thisNode, removedEdges[thisNode], this.adjMatrix, this.nodes) +  " and node " + nextNode.id + " at " + nextNode.x + ", " + nextNode.y + " which had # remaining edges: " + Helper.GetNumOfNodesValidEdges(connectedGroup, nextNode, removedEdges[nextNode], this.adjMatrix, this.nodes));
                 updatedRemovedEdges[thisNode].Add(nextNode.id);
                 updatedRemovedEdges[nextNode].Add(thisNode.id);
             }
@@ -335,7 +257,7 @@ public class PolygonSplittingGraph : GenericGraph<PolygonSplittingGraphNode>
     /// </summary>
     /// <param name="cycle">Cycle discovered from BFS></param>
     /// <returns>True if the cycle is a hole, false otherwise.</returns>
-    private bool _IsCycleHole(SCol.List<PolygonSplittingGraphNode> cycle)
+    private bool _IsCycleHole(List<PolygonSplittingGraphNode> cycle)
     {
         var cycleAsVectorArray = new Vector2[cycle.Count];
         for (int i = 0; i < cycle.Count; i++)
@@ -356,9 +278,9 @@ public class PolygonSplittingGraph : GenericGraph<PolygonSplittingGraphNode>
     /// <param name="connectedGroups">A list of all ConnectedNodeGroups.</param>
     /// <param name="idsContainedInGroup">The IDs of the ConnectedNodeGroups contained within <param>connectedGroup</param></param>
     /// <returns></returns>
-    private static RectangularPolygon _FinalisePartition(SCol.List<PolygonSplittingGraphNode> cycle, ConnectedNodeGroup connectedGroup,
-                                                 SCol.List<ConnectedNodeGroup> connectedGroups, 
-                                                 SCol.SortedDictionary<ConnectedNodeGroup, SCol.HashSet<int>> idsContainedInGroup)
+    private ChordlessPolygon _FinalisePartition(List<PolygonSplittingGraphNode> cycle, ConnectedNodeGroup connectedGroup,
+                                                       SortedList<int, ConnectedNodeGroup> connectedGroups, 
+                                                       SortedDictionary<int, HashSet<int>> idsContainedInGroup)
     {
         var cycleAsVectorArray = new Vector2[cycle.Count];
         for (int i = 0; i < cycle.Count; i++)
@@ -366,17 +288,26 @@ public class PolygonSplittingGraph : GenericGraph<PolygonSplittingGraphNode>
             PolygonSplittingGraphNode node = cycle[i];
             cycleAsVectorArray[i] = new Vector2(node.x, node.y);
         }
-
-        var holes = new SCol.List<SCol.List<Vector2>>();
-        foreach (int connectedGroupID in idsContainedInGroup[connectedGroup])
+        
+        var potentialHoles = new List<List<Vector2>>();
+        var bridges = new Dictionary<Vector2, HashSet<Vector2>>();
+        foreach (int connectedGroupID in idsContainedInGroup[connectedGroup.id])
         {
-            ConnectedNodeGroup groupInside = connectedGroups.Find(group => group.id == connectedGroupID);
-            if (GeometryFuncs.IsPolyInPoly(groupInside.GetOuterPerimAsVectorArray(), cycleAsVectorArray))
-            {
-                holes.Add(groupInside.GetOuterPerimAsVectorArray().ToList());
+            ConnectedNodeGroup groupInside = connectedGroups[connectedGroupID];
+            potentialHoles.Add(groupInside.outerPerimSimplified.ToList());
+            
+            foreach (int nodeID in groupInside.bridges.Keys)
+            { 
+                var nodeCoord = new Vector2(this.nodes[nodeID].x, this.nodes[nodeID].y);
+                foreach (int neighbourID in groupInside.bridges[nodeID])
+                {
+                    var neighbourCoord = new Vector2(this.nodes[neighbourID].x, this.nodes[neighbourID].y);
+                    if (!bridges.ContainsKey(nodeCoord)) bridges[nodeCoord] = new HashSet<Vector2>();
+                    bridges[nodeCoord].Add(neighbourCoord);
+                }
             }
         }
-        return new RectangularPolygon(cycleAsVectorArray, holes.ToArray());
+        return new ChordlessPolygon(cycleAsVectorArray, potentialHoles.ToArray(), bridges);
     }
 }
 }

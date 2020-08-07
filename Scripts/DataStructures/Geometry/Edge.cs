@@ -18,13 +18,13 @@ public abstract class Edge
         this.isChecked = false;
     }
 
-    public Edge GetReverseEdge()
-    {
-        return new PolyEdge(this.b, this.a)
-        {
-            isChecked = this.isChecked
-        };   
-    }
+    public abstract Edge GetReverseEdge();
+    // {
+    //     return new PolyEdge(this.b, this.a)
+    //     {
+    //         isChecked = this.isChecked
+    //     };   
+    // }
     
     public bool IsIdentical(Edge other)
     {
