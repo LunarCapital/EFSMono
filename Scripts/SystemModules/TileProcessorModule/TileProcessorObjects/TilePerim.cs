@@ -13,12 +13,6 @@ public class TilePerim
 
     public const int UNCOLORED = -1;
     private const int TILE_VERTICES_NUM = 4;
-    /// <summary>
-    /// CCW_SIDE is the same as Globals.SIDE except WEST and EAST are reversed.
-    /// This is because Globals.SIDE has NESW in traditional order, while Godot stores
-    /// tile vertices in CCW order.
-    /// </summary>
-    private enum CCWSide {WEST = 1, SOUTH = 2, EAST = 3, NORTH = 0};
 
     private TileEdge north { get; set;}
     private TileEdge east { get; set;}
@@ -71,10 +65,10 @@ public class TilePerim
     public TileEdge[] GetEdgesArray()
     {
         var edges = new TileEdge[4];
-        edges[(int)Globals.Side.NORTH] = this.north;
-        edges[(int)Globals.Side.EAST] = this.east;
-        edges[(int)Globals.Side.SOUTH] = this.south;
-        edges[(int)Globals.Side.WEST] = this.west;
+        edges[(int)Globals.CWSide.NORTH] = this.north;
+        edges[(int)Globals.CWSide.EAST] = this.east;
+        edges[(int)Globals.CWSide.SOUTH] = this.south;
+        edges[(int)Globals.CWSide.WEST] = this.west;
         return edges;
     }
 
@@ -96,7 +90,10 @@ public class TilePerim
     }
 
     /// <summary>
-    /// Based off an array off four vertices, sets this class's N/E/S/W edges accordingly.
+    /// Based off an array off four vertices, sets this class's N/E/S/W edges accordingly. Note that CCWSide is used to
+    /// get tile indexes, because Godot stores segments in CCW order, but TileEdges are mapped to CWSide because they
+    /// are ordered NESW for later (I know this is confusing). It would technically be cleaner to just use CCWSide all
+    /// the time but my brain can't dissociate NESW from their natural order.
     /// </summary>
     /// <param name="vertices">Array of four vertices that make up a tile.</param>
     /// <param name="cell">Cell coordinates of tile.</param>
@@ -113,17 +110,17 @@ public class TilePerim
              //check the index of point B
             switch ((rawIndex + 1)%vertices.Count)
             {
-                case (int)CCWSide.WEST:
-                    this.west = new TileEdge(vertexA, vertexB, cell, (int)Globals.Side.WEST);
+                case (int)Globals.CCWSide.WEST:
+                    this.west = new TileEdge(vertexA, vertexB, cell, (int)Globals.CWSide.WEST);
                     break;
-                case (int)CCWSide.SOUTH:
-                    this.south = new TileEdge(vertexA, vertexB, cell, (int)Globals.Side.SOUTH);
+                case (int)Globals.CCWSide.SOUTH:
+                    this.south = new TileEdge(vertexA, vertexB, cell, (int)Globals.CWSide.SOUTH);
                     break;
-                case (int)CCWSide.EAST:
-                    this.east = new TileEdge(vertexA, vertexB, cell, (int)Globals.Side.EAST);
+                case (int)Globals.CCWSide.EAST:
+                    this.east = new TileEdge(vertexA, vertexB, cell, (int)Globals.CWSide.EAST);
                     break;
-                case (int)CCWSide.NORTH:
-                    this.north = new TileEdge(vertexA, vertexB, cell, (int)Globals.Side.NORTH);
+                case (int)Globals.CCWSide.NORTH:
+                    this.north = new TileEdge(vertexA, vertexB, cell, (int)Globals.CWSide.NORTH);
                     break;
                 default:
                     invalidSide = true;

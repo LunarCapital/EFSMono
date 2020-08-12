@@ -41,16 +41,16 @@ public class TileFuncs : Node
 
         switch (direction)
         {
-            case (int)Globals.Side.NORTH:
+            case (int)Globals.CWSide.NORTH:
                 adjTile = currentTile + Globals.NORTH_VEC2;
                 break;
-            case (int)Globals.Side.EAST:
+            case (int)Globals.CWSide.EAST:
                 adjTile = currentTile + Globals.EAST_VEC2;
                 break;
-            case (int)Globals.Side.SOUTH:
+            case (int)Globals.CWSide.SOUTH:
                 adjTile = currentTile + Globals.SOUTH_VEC2;
                 break;
-            case (int)Globals.Side.WEST:
+            case (int)Globals.CWSide.WEST:
                 adjTile = currentTile + Globals.WEST_VEC2;
                 break;
         }

@@ -54,9 +54,9 @@ public static class PerimeterUnpacker
 
     /// <summary>
     /// Given an EdgeCollection with a bunch of edges:
-    ///     1. Grabs a group of edges that are connected to each other and orders them.
-    ///        Edges not connected to this group are left behind.
-    ///     2. Out of the left behind edges, grabs a group that are connected and orders them.
+    ///     1. Grabs the outside perimeter formed by the available edges.
+    ///        Edges not connected to this perimeter are left behind.
+    ///     2. Out of the left behind edges, grabs a cycle that contains no non-perimeter edges within it and orders them.
     ///        Again, edges not connected to this group are left behind.
     ///     3. Repeat until all edges are ordered and split into their own connected groups.
     /// Returns the split and ordered edges in a List.
@@ -68,10 +68,6 @@ public static class PerimeterUnpacker
         var splitEdgeColl = new List<EdgeCollection<TileEdge>>();
         EdgeCollection<TileEdge> cloneEdgeColl = originalEdgeColl.Clone();
         EdgeCollection<TileEdge> outerEdgesColl = cloneEdgeColl.GetOuterClosedLoop(); //first pull the outer perim
-        foreach (TileEdge edge in outerEdgesColl)
-        {
-            GD.PrintS("outer edge has edge: " + edge.a + " to " + edge.b);
-        }
         splitEdgeColl.Add(outerEdgesColl);
         cloneEdgeColl = cloneEdgeColl.GetExcludedCollection(outerEdgesColl);
         while (cloneEdgeColl.Count > 0)
@@ -79,10 +75,6 @@ public static class PerimeterUnpacker
             List<EdgeCollection<TileEdge>> smallClosedLoops = cloneEdgeColl.GetSmallClosedLoops();
             foreach (EdgeCollection<TileEdge> smallClosedLoop in smallClosedLoops)
             {
-                foreach (TileEdge edge in smallClosedLoop)
-                {
-                    GD.PrintS("small loop has edge: " + edge.a + " to " + edge.b);
-                }
                 splitEdgeColl.Add(smallClosedLoop);
                 cloneEdgeColl = cloneEdgeColl.GetExcludedCollection(smallClosedLoop);
             }

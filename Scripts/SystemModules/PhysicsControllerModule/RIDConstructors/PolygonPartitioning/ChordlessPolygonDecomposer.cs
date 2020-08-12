@@ -3,7 +3,6 @@ using System.Linq;
 using EFSMono.Scripts.Autoload;
 using EFSMono.Scripts.DataStructures.Geometry;
 using EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects;
-using EFSMono.Scripts.SystemModules.PhysicsControllerModule.RIDConstructors.PolygonPartitioning.PolygonObjects;
 using Godot;
 
 namespace EFSMono.Scripts.SystemModules.PhysicsControllerModule.RIDConstructors.PolygonPartitioning
@@ -33,54 +32,12 @@ public static class ChordlessPolygonDecomposer
         var rectangles = new List<List<Vector2>>(); 
         foreach (ChordlessPolygon polygon in chordlessPolygons)
         {
-            GD.PrintS("DECOMPOSING CHORDLESS POLYGON WITH PERIM: ");
-            foreach (Vector2 vertex in polygon.outerPerim)
-            {
-                GD.PrintS("vertex: " + vertex);
-            }
-            foreach (List<Vector2> hole in polygon.holes)
-            {
-                foreach (Vector2 vertex in hole)
-                {
-                    GD.PrintS("vertex in hole: " + vertex);
-                }
-            }
-            HashSet<ConcaveVertex> concaveVertices = _GetConcaveVertices(polygon);
-            foreach (ConcaveVertex concaveVertex in concaveVertices)
-            {
-                GD.PrintS("Concave vertex: " + concaveVertex.vertex);
-            }
-            HashSet<ConcaveVertex> duplicateConcaveVertices = _GetDuplicateConcaveVertices(concaveVertices, polygon);
-            foreach (ConcaveVertex duplicate in duplicateConcaveVertices)
-            {
-                concaveVertices.Remove(duplicate);
-            }
-            foreach (ConcaveVertex concaveVertex in concaveVertices)
-            {
-                GD.PrintS("Post duplicate removal concave vertex: " + concaveVertex.vertex);
-            }
-            
+            HashSet<ConcaveVertex> concaveVertices = ConcaveVertexFinder.GetConcaveVertices(polygon);
             List<PolyEdge> extensionSegments = _FindVertexExtensions(polygon, concaveVertices, chords);
             HashSet<Vector2> extensionVertices = _GetNewVertices(polygon, extensionSegments);
-            GD.PrintS("New xtension vertices:");
-            foreach (Vector2 vertex in extensionVertices)
-            {
-                GD.PrintS(vertex);
-            }
-            
             (List<Vector2> newPerim, List<List<Vector2>> newHoles) =  _InsertNewVerticesIntoPerims(polygon, extensionVertices);
             List<PolygonSplittingGraphNode> nodes = _CreateNewNodes(newPerim, newHoles, extensionSegments);
             var polygonSplittingGraph = new PolygonSplittingGraph(nodes, newHoles);
-
-            foreach (PolygonSplittingGraphNode node in nodes)
-            {
-                GD.PrintS("chordless node with id: " + node.id + " at coord: " + node.x + ", " + node.y + " has neighbours: ");
-                foreach (int id in node.connectedNodeIDs)
-                {
-                    GD.PrintS(id);
-                }
-            }
-            
             List<ChordlessPolygon> newRectangles = polygonSplittingGraph.GetMinCycles();
             rectangles.AddRange(newRectangles.Select(rectangle => rectangle.outerPerim.ToList()));
         }
@@ -88,102 +45,11 @@ public static class ChordlessPolygonDecomposer
     }
 
     /// <summary>
-    /// Checks polygon vertices (of both its outer perimeters and holes) and returns a list of the concave ones.
-    /// </summary>
-    /// <param name="polygon"></param>
-    /// <returns>List of concave vertices.</returns>
-    private static HashSet<ConcaveVertex> _GetConcaveVertices(ChordlessPolygon polygon)
-    {
-        var concaveVertices = new HashSet<ConcaveVertex>();
-        concaveVertices.UnionWith(_TracePerimeterForConcaveVertices(polygon.outerPerim));
-
-        foreach (List<Vector2> hole in polygon.holes)
-        {
-            concaveVertices.UnionWith(_TracePerimeterForConcaveVertices(hole, true));
-        }
-        return concaveVertices;
-    }
-
-    /// <summary>
-    /// Iterates through the input <param>perimeter</param> from the vertex with the min X and min Y coordinates (which
-    /// is ALWAYS convex) in CCW order.  Three vertices are needed to check whether the middle vertex is concave or not,
-    /// AKA some sequence of vertices P, Q, and R can be used to determine Q given that the vertices are NOT collinear.
-    /// Q is concave IF the midpoint between P and R is WITHIN the polygon, AKA:
-    ///     * If the perimeter being checked is not a hole (AKA it is the polygon's outer perim), then P->R's midpoint
-    ///       must be inside the polygon for Q to be concave.
-    ///     * If the perimeter being checked IS a hole, then P->R's midpoint must NOT be inside the hole for Q to be
-    ///       concave.
-    /// </summary>
-    /// <param name="perimeter">Perimeter of either polygon or its holes.</param>
-    /// <returns>List of concave vertices.</returns>
-    private static HashSet<ConcaveVertex> _TracePerimeterForConcaveVertices(IReadOnlyList<Vector2> perimeter, bool hole = false)
-    {
-        var concaveVertices = new HashSet<ConcaveVertex>();
-        int startID = GeometryFuncs.GetMinXMinYCoord(perimeter);
-        for (int i = 0; i < perimeter.Count - 1; i++) //Count - 1 because of closed loop convention
-        { //as a side note, perim is always ordered CCW thanks to EdgeCollection's simplification algorithm.
-            int thisIndex = (i + startID);
-            Vector2 thisVertex = perimeter[thisIndex % (perimeter.Count - 1)];
-            Vector2 prevVertex = perimeter[(thisIndex - 1 + perimeter.Count - 1) % (perimeter.Count - 1)];
-            Vector2 nextVertex = perimeter[(thisIndex + 1) % (perimeter.Count - 1)];
-            float angle = Mathf.Rad2Deg(Mathf.Atan2(thisVertex.y - prevVertex.y, thisVertex.x - prevVertex.x) - 
-                                        Mathf.Atan2(nextVertex.y - thisVertex.y, nextVertex.x - thisVertex.x));
-            GD.PrintS("prev to thsi to next: " + prevVertex + ", " + thisVertex + ", " + nextVertex + ", angle: " + angle);
-            if (angle < 0) angle += 360;
-            if (angle == 90 && hole)
-            { //hole with 90 degree angle would be 270 on the other side .'. concave
-                concaveVertices.Add(new ConcaveVertex(thisVertex, prevVertex, nextVertex));
-            }
-            else if (angle == 270 && !hole)
-            {
-                concaveVertices.Add(new ConcaveVertex(thisVertex, prevVertex, nextVertex));
-            }
-        }
-        return concaveVertices;
-    }
-
-    
-    /// <summary>
-    /// Checks how many times a concave vertex appears in an input polygon's perimeters and adds them to a list of
-    /// duplicates IFF the vertex appears more than once.
-    /// </summary>
-    /// <param name="polygon"></param>
-    /// <returns>A list of concave vertices that appear in the input polygon's perimeters more than once.</returns>
-    private static HashSet<ConcaveVertex> _GetDuplicateConcaveVertices(HashSet<ConcaveVertex> concaveVertices, ChordlessPolygon polygon)
-    {
-        var duplicateVertices = new HashSet<ConcaveVertex>();
-        foreach (ConcaveVertex concaveVertex in concaveVertices)
-        {
-            int appearanceCount = 0;
-            foreach (Vector2 perimVertex in polygon.outerPerim)
-            {
-                if (perimVertex == concaveVertex.vertex)
-                {
-                    appearanceCount++;
-                    break;
-                }
-            }
-            foreach (List<Vector2> hole in polygon.holes)
-            {
-                foreach (Vector2 holeVertex in hole)
-                {
-                    if (holeVertex == concaveVertex.vertex)
-                    {
-                        appearanceCount++;
-                        break;
-                    }
-                }
-            }
-            if (appearanceCount > 1) duplicateVertices.Add(concaveVertex);
-        }
-        return duplicateVertices;
-    }
-    
-    /// <summary>
     /// Gets chordless polygon extensions as a list of PolyEdges.  Always fills in bridges first.
     /// </summary>
     /// <param name="polygon"></param>
     /// <param name="concaveVertices">Vertices in polygon that need to be extended.</param>
+    /// <param name="chords"></param>
     /// <returns>List of PolyEdges representing extensions.</returns>
     private static List<PolyEdge> _FindVertexExtensions(ChordlessPolygon polygon, HashSet<ConcaveVertex> concaveVertices, List<Chord> chords)
     {
@@ -191,25 +57,16 @@ public static class ChordlessPolygonDecomposer
         foreach (ConcaveVertex concaveVertex in concaveVertices)
         {
             if (alreadyExtended.Contains(concaveVertex.vertex)) continue;
-            GD.PrintS("Vertex: " + concaveVertex.vertex + " can extend hori: " + concaveVertex.GetHorizontalFreeDirection() + " or vert: " + concaveVertex.GetVerticalFreeDirection());
             Vector2 freeDir = concaveVertex.GetHorizontalFreeDirection();
             if (_IsDirectionChordFree(concaveVertex.vertex, freeDir, concaveVertices, chords))
             { //ensure that if we were to extend in this direction we would not create a chord
-                GD.PrintS("horizontal free");
-                if (!_IsDirectionChordFree(concaveVertex.vertex, concaveVertex.GetVerticalFreeDirection(), concaveVertices, chords))
-                {
-                    GD.PrintS("But vert not free");
-                }
             }
             else
             {
-                GD.PrintS("Horizontal NOT FREE");
                 freeDir = concaveVertex.GetVerticalFreeDirection();
             }
             Vector2 overextension = _GetOverextendedCoord(polygon, concaveVertex.vertex, freeDir);
-            GD.PrintS("Vertex overextends to: " + overextension);
             Vector2 cutExtension = _GetCutExtension(polygon, extensions, concaveVertex.vertex, overextension);
-            GD.PrintS("Vertex extension is cut down to: " + cutExtension);
             extensions.Add(new PolyEdge(concaveVertex.vertex, cutExtension));
         }
         return extensions;
@@ -234,13 +91,14 @@ public static class ChordlessPolygonDecomposer
         }
         return (extensions, alreadyExtended);
     }
-    
+
     /// <summary>
     /// Checks if there are any other concave vertices in some direction from the origin.
     /// </summary>
     /// <param name="origin"></param>
     /// <param name="direction"></param>
     /// <param name="concaveVertices"></param>
+    /// <param name="chords"></param>
     /// <returns>Returns true if from the origin in some input direction there is a different concave vertex.</returns>
     private static bool _IsDirectionChordFree(Vector2 origin, Vector2 direction, HashSet<ConcaveVertex> concaveVertices, List<Chord> chords)
     {
@@ -249,7 +107,7 @@ public static class ChordlessPolygonDecomposer
             if ((concaveVertex.vertex - origin).Normalized() == direction)
             { 
                 if (chords.Exists(c => (c.a == origin && c.b == concaveVertex.vertex) ||
-                                                    (c.b == origin && c.a == concaveVertex.vertex)))
+                                             (c.b == origin && c.a == concaveVertex.vertex)))
                 return false;
             }
         }
@@ -331,8 +189,8 @@ public static class ChordlessPolygonDecomposer
         {
             for (int i = 0; i < hole.Count - 1; i++)
             {
-                Vector2 perimCoordA = polygon.outerPerim[i];
-                Vector2 perimCoordB = polygon.outerPerim[i + 1];
+                Vector2 perimCoordA = hole[i];
+                Vector2 perimCoordB = hole[i + 1];
                 if (GeometryFuncs.AreSegmentsParallel(origin, overextension, perimCoordA, perimCoordB) ||
                                                             perimCoordA == origin || perimCoordB == origin) continue;
                 Vector2 potentialCutExtension = _CutExtensionWithSegment(origin, overextension, perimCoordA, perimCoordB);
@@ -381,7 +239,6 @@ public static class ChordlessPolygonDecomposer
         }
         else if (origin.y == overextension.y)
         { //HORIZONTAL
-            GD.PrintS("horizontal cut: " + cutExtension + " using segment: " + segmentA + ", " + segmentB);
             cutExtension.x = segmentA.x;
         }
         
@@ -482,7 +339,6 @@ public static class ChordlessPolygonDecomposer
                 (thisVertex.y - vertex.y) * (nextVertex.y - vertex.y) <= 0)
             {
                 verticesInBetween.Add(vertex);
-                GD.PrintS("confimred: Between: " + thisVertex + " and " + nextVertex + " is: " + vertex);
             }
         }
         return verticesInBetween;

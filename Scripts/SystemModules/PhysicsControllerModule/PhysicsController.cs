@@ -6,6 +6,9 @@ using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Per
 using Godot;
 using TinyMessenger;
 using System.Collections.Generic;
+using System.Timers;
+using EFSMono.Scripts.SystemModules.EntityTrackerModule.HubMessages;
+using Timer = System.Timers.Timer;
 
 namespace EFSMono.Scripts.SystemModules.PhysicsControllerModule {
 /// <summary>
@@ -17,38 +20,27 @@ namespace EFSMono.Scripts.SystemModules.PhysicsControllerModule {
 /// </summary>
 public class PhysicsController
 {
-    //Wall StaticBodies of tilemaps
-    //Ledge StaticBodies of tilemaps
-    //arrays of RIDs of collision objects of each wall StaticBody
-    //arrays of RIDs of collision objects of each ledge StaticBody
-    //Array of RIDs of entities????
-        //may put this in a separate one called EntityController or something?
-
     //Variables
     private readonly TinyMessengerHub _toEntityHub;
     
-    public Dictionary<TileMap, RID> tileMapToFloorArea2Ds;
-    public Dictionary<TileMap, RID> tileMapToWallSB2Ds;
-    public Dictionary<TileMap, RID> tileMapToLedgeSB2Ds;
-    public Dictionary<RID, List<ConvexPolygonShape2D>> floorArea2DToPolygons;
-    public Dictionary<RID, List<SegmentShape2D>> wallSB2DToSegments;
-    public Dictionary<RID, List<SegmentShape2D>> ledgeSB2DToSegments;
-    //TODO evaluate whether it is required that these are public and set to private if they are not
-
-    //Delegates
-    //public delegate void FloorsConstructedEventHandler(object sender, FloorsConstructedEventArgs args);
-    //Events
-    //public event System.EventHandler<FloorsConstructedEventArgs> FloorsConstructed;
+    private Dictionary<TileMap, RID> _tileMapToFloorArea2Ds;
+    private Dictionary<TileMap, RID> _tileMapToWallSB2Ds;
+    private Dictionary<TileMap, RID> _tileMapToLedgeSB2Ds;
+    private Dictionary<RID, List<ConvexPolygonShape2D>> _floorArea2DToPolygons;
+    private Dictionary<RID, List<SegmentShape2D>> _wallSB2DToSegments;
+    private Dictionary<RID, List<SegmentShape2D>> _ledgeSB2DToSegments;
 
     public PhysicsController(TinyMessengerHub toEntityHub)
     {
         this._toEntityHub = toEntityHub;
-        this.tileMapToFloorArea2Ds = new Dictionary<TileMap, RID>();
-        this.tileMapToWallSB2Ds = new Dictionary<TileMap, RID>();
-        this.tileMapToLedgeSB2Ds = new Dictionary<TileMap, RID>();
-        this.floorArea2DToPolygons = new Dictionary<RID, List<ConvexPolygonShape2D>>();
-        this.wallSB2DToSegments = new Dictionary<RID, List<SegmentShape2D>>();
-        this.ledgeSB2DToSegments = new Dictionary<RID, List<SegmentShape2D>>();
+        this._toEntityHub.Subscribe<EntityChangedZIndexMessage>(this._HandleEntityChangedZIndex);
+
+        this._tileMapToFloorArea2Ds = new Dictionary<TileMap, RID>();
+        this._tileMapToWallSB2Ds = new Dictionary<TileMap, RID>();
+        this._tileMapToLedgeSB2Ds = new Dictionary<TileMap, RID>();
+        this._floorArea2DToPolygons = new Dictionary<RID, List<ConvexPolygonShape2D>>();
+        this._wallSB2DToSegments = new Dictionary<RID, List<SegmentShape2D>>();
+        this._ledgeSB2DToSegments = new Dictionary<RID, List<SegmentShape2D>>();
     }
 
     /// <summary>
@@ -63,38 +55,51 @@ public class PhysicsController
     {
         this._FreeRIDs();
         
-        this.tileMapToFloorArea2Ds = tileMaps.ConstructTileMapFloorMap(worldSpace);
-        this.tileMapToWallSB2Ds = tileMaps.ConstructTileMapCollisionMap(worldSpace);
-        this.tileMapToLedgeSB2Ds = tileMaps.ConstructTileMapCollisionMap(worldSpace);
-        this.floorArea2DToPolygons = tileMaps.ConstructFloorPartitions(this.tileMapToFloorArea2Ds, perimData);
-        this.wallSB2DToSegments = tileMaps.ConstructSB2DSegments(this.tileMapToWallSB2Ds, perimData, ledgeData,
+        this._tileMapToFloorArea2Ds = tileMaps.ConstructTileMapFloorMap(worldSpace);
+        this._tileMapToWallSB2Ds = tileMaps.ConstructTileMapCollisionMap(worldSpace);
+        this._tileMapToLedgeSB2Ds = tileMaps.ConstructTileMapCollisionMap(worldSpace);
+        this._floorArea2DToPolygons = tileMaps.ConstructFloorPartitions(this._tileMapToFloorArea2Ds, perimData);
+        this._wallSB2DToSegments = tileMaps.ConstructSB2DSegments(this._tileMapToWallSB2Ds, perimData, ledgeData,
                                                           CollisionConstructor.StaticBodyOrigin.WALL);
-        this.ledgeSB2DToSegments = tileMaps.ConstructSB2DSegments(this.tileMapToLedgeSB2Ds, perimData, ledgeData, 
+        this._ledgeSB2DToSegments = tileMaps.ConstructSB2DSegments(this._tileMapToLedgeSB2Ds, perimData, ledgeData, 
                                                            CollisionConstructor.StaticBodyOrigin.LEDGE);
         
-        this._toEntityHub.Publish(new FloorsConstructedMessage(this, this.tileMapToFloorArea2Ds));
-    }
+        this._toEntityHub.Publish(new FloorsConstructedMessage(this, this._tileMapToFloorArea2Ds));
+        foreach (TileMap tileMap in tileMaps.Values)
+        {
+            //GD.PrintS("TileMapToFloorArea2Ds RID for tilemap with zIndex " + tileMap.ZIndex + ": " + this.tileMapToFloorArea2Ds[tileMap].GetId());
+            //GD.PrintS("TileMapToWallSB2Ds RID for tilemap with zIndex " + tileMap.ZIndex + ": " +  this.tileMapToWallSB2Ds[tileMap].GetId());
+            //GD.PrintS("TileMapToLedgeSB2Ds RID for tilemap with zIndex " + tileMap.ZIndex + ": " +  this.tileMapToLedgeSB2Ds[tileMap].GetId());
 
+            RID floorRID = this._tileMapToFloorArea2Ds[tileMap];
+            RID wallRID = this._tileMapToWallSB2Ds[tileMap];
+            RID ledgeRID = this._tileMapToLedgeSB2Ds[tileMap];
+            GD.PrintS("floorArea2DToPolygons count: " + this._floorArea2DToPolygons[floorRID].Count);
+            GD.PrintS("wallSB2DToSegments count: " + this._wallSB2DToSegments[wallRID].Count);
+            GD.PrintS("ledgeSB2DToSegments count: " + this._ledgeSB2DToSegments[ledgeRID].Count);
+        }
+    }
+    
     /// <summary>
     /// Free all RIDs stored.
     /// </summary>
     private void _FreeRIDs()
     {
         var allRIDs = new List<RID>();
-        allRIDs.AddRange(this.tileMapToFloorArea2Ds.Values);
-        allRIDs.AddRange(this.tileMapToWallSB2Ds.Values);
-        allRIDs.AddRange(this.tileMapToLedgeSB2Ds.Values);
-        foreach (List<ConvexPolygonShape2D> polygons in this.floorArea2DToPolygons.Values)
+        allRIDs.AddRange(this._tileMapToFloorArea2Ds.Values);
+        allRIDs.AddRange(this._tileMapToWallSB2Ds.Values);
+        allRIDs.AddRange(this._tileMapToLedgeSB2Ds.Values);
+        foreach (List<ConvexPolygonShape2D> polygons in this._floorArea2DToPolygons.Values)
         {
             allRIDs.AddRange(polygons.ConvertAll(x => x.GetRid()));
         }
 
-        foreach (List<SegmentShape2D> segments in this.wallSB2DToSegments.Values)
+        foreach (List<SegmentShape2D> segments in this._wallSB2DToSegments.Values)
         {
             allRIDs.AddRange(segments.ConvertAll(x => x.GetRid()));
         }
 
-        foreach (List<SegmentShape2D> segments in this.ledgeSB2DToSegments.Values)
+        foreach (List<SegmentShape2D> segments in this._ledgeSB2DToSegments.Values)
         {
             allRIDs.AddRange(segments.ConvertAll(x => x.GetRid()));
         }
@@ -105,5 +110,26 @@ public class PhysicsController
         }
     }
 
+    /// <summary>
+    /// Set all walls and ledges that are not on the same z index as some entity to ignore it.
+    /// Passed from entity MessageHub subscription and is fired when EntityTracker detects that an entity has changed z index.
+    /// </summary>
+    /// <param name="msg"></param>
+    private void _HandleEntityChangedZIndex(EntityChangedZIndexMessage msg)
+    {
+        RID entityRID = msg.GetEntityRID();
+        int zIndex = msg.GetZIndex();
+
+        foreach (TileMap tileMap in this._tileMapToWallSB2Ds.Keys)
+        {
+            if (tileMap.ZIndex == zIndex) Physics2DServer.BodyRemoveCollisionException(this._tileMapToWallSB2Ds[tileMap], entityRID);
+            else Physics2DServer.BodyAddCollisionException(this._tileMapToWallSB2Ds[tileMap], entityRID);
+        }
+        foreach (TileMap tileMap in this._tileMapToLedgeSB2Ds.Keys)
+        {
+            if (tileMap.ZIndex == zIndex) Physics2DServer.BodyRemoveCollisionException(this._tileMapToLedgeSB2Ds[tileMap], entityRID);
+            else Physics2DServer.BodyAddCollisionException(this._tileMapToLedgeSB2Ds[tileMap], entityRID);
+        }
+    }
 }
 }

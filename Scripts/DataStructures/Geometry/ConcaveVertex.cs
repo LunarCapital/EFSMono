@@ -61,5 +61,20 @@ public class ConcaveVertex
         freeDirection.y *= -1;
         return freeDirection;
     }
+
+    public override int GetHashCode()
+    {
+        return this.vertex.GetHashCode();
+    }
+
+    public override bool Equals(object obj)
+    {
+        return this.Equals((ConcaveVertex) obj);
+    }
+
+    private bool Equals(ConcaveVertex other)
+    {
+        return this.vertex == other.vertex;
+    }
 }
 }

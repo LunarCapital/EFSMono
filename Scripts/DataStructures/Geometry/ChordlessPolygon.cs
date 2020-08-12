@@ -18,12 +18,15 @@ public class ChordlessPolygon
     public Vector2[] outerPerimUnsimplified { get;  }
     public List<Vector2>[] holes { get; }
     public Dictionary<Vector2, HashSet<Vector2>> bridges { get; }
+    public bool isHole { get;  }
 
-    public ChordlessPolygon(Vector2[] outerPerim, List<Vector2>[] potentialHoles, Dictionary<Vector2, HashSet<Vector2>> bridges)
+    public ChordlessPolygon(Vector2[] outerPerim, List<Vector2>[] potentialHoles,
+                            Dictionary<Vector2, HashSet<Vector2>> bridges, bool isHole)
     {
+        this.isHole = isHole;
         this.outerPerimUnsimplified = outerPerim;
         this.outerPerim = _SimplifyOuterPerim(outerPerim);
-        this.holes = this._GetContainedHoles(potentialHoles);
+        this.holes = (!this.isHole) ? this._GetContainedHoles(potentialHoles) : new List<Vector2>[0];
         this.bridges = bridges;
         
         if (!GeometryFuncs.IsPolygonCCW(this.outerPerim))
@@ -73,22 +76,24 @@ public class ChordlessPolygon
         var confirmedHoles = new List<List<Vector2>>();
         foreach (List<Vector2> hole in potentialHoles)
         {
+            HashSet<Vector2> sharedVertices;
             if (GeometryFuncs.IsPolyInPoly(hole.ToArray(), this.outerPerim))
             {
                 confirmedHoles.Add(hole);
             }
-            else if (_DoesHoleShareVertex(hole))
+            else if ((sharedVertices = this._GetHoleSharedVertices(hole)).Count > 0)
             {
-                bool holeVertexInsidePoly = false;
+                int holeVerticesInPoly = 0; //guilty until proven innocent, to prevent snake poly from containing hole
                 foreach (Vector2 holeVertex in hole)
                 {
-                    if (GeometryFuncs.IsPointInPoly(holeVertex, this.outerPerim))
+                    if (sharedVertices.Contains(holeVertex)) continue;
+                    if (GeometryFuncs.IsPointInPoly(holeVertex, this.outerPerim) &&
+                        !GeometryFuncs.IsPointOnPolyBoundary(holeVertex, this.outerPerim))
                     {
-                        holeVertexInsidePoly = true;
-                        break;
+                        holeVerticesInPoly++;
                     }
                 }
-                if (holeVertexInsidePoly) confirmedHoles.Add(hole);
+                if (holeVerticesInPoly > 0) confirmedHoles.Add(hole);
             }
         }
         return confirmedHoles.ToArray();
@@ -99,16 +104,17 @@ public class ChordlessPolygon
     /// </summary>
     /// <param name="hole"></param>
     /// <returns>True if hole shares a vertex with this polygon.</returns>
-    private bool _DoesHoleShareVertex(List<Vector2> hole)
+    private HashSet<Vector2> _GetHoleSharedVertices(List<Vector2> hole)
     {
+        var containedHoles = new HashSet<Vector2>();
         foreach (Vector2 thisVertex in this.outerPerim)
         {
-            foreach (Vector2 holeVertex in hole)
+            foreach (Vector2 holeVertex in hole.Where(holeVertex => thisVertex == holeVertex))
             {
-                if (thisVertex == holeVertex) return true;
+                containedHoles.Add(holeVertex);
             }
         }
-        return false;
+        return containedHoles;
     }
 }
 }

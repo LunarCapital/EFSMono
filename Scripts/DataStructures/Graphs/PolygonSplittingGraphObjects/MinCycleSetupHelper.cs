@@ -1,8 +1,7 @@
 ﻿using Godot;
 using System;
-using System.Linq;
-using EFSMono.Scripts.Autoload;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects
 {
@@ -17,34 +16,21 @@ public static class MinCycleSetupHelper
     /// Finds groups of connected nodes and returns them as a list.
     /// </summary>
     /// <returns>A list of connected node groups in the polygon represented by this class.</returns>
-    public static SortedList<int, ConnectedNodeGroup> GetConnectedGroups(SortedList<int, PolygonSplittingGraphNode> nodes, int[,] adjMatrix,
-                                                              Func<List<PolygonSplittingGraphNode>,
-                                                                   Dictionary<int, HashSet<int>>,
-                                                                   List<PolygonSplittingGraphNode>> getDFSCover)
+    public static SortedList<int, ConnectedNodeGroup> GetConnectedGroups(SortedList<int, PolygonSplittingGraphNode> nodes,
+        Func<List<PolygonSplittingGraphNode>, Dictionary<int, HashSet<int>>, List<PolygonSplittingGraphNode>> getDFSCover)
     {
         var connectedGroups = new SortedList<int, ConnectedNodeGroup>();
         var visited = new HashSet<PolygonSplittingGraphNode>();
-        Dictionary<int, HashSet<int>> bridges = BridgeFinder.GetBridges(nodes, adjMatrix);
-        GD.PrintS("bridge algo fin");
-        foreach (int uID in bridges.Keys)
-        {
-            foreach (int vID in bridges[uID])
-            {
-                GD.PrintS("bridge present with IDs from " + uID + " to " + vID + ", coords are: " + nodes[uID].x + ", " + nodes[uID].y + " to " + nodes[vID].x + ", " + nodes[vID].y);
-            }
-        }
+        Dictionary<int, HashSet<int>> bridges = BridgeFinder.GetBridges(nodes);
         int id = 0;
-        
         foreach (PolygonSplittingGraphNode node in nodes.Values)
         {
             if (visited.Contains(node)) continue;
             List<PolygonSplittingGraphNode> connectedToNode = getDFSCover(new List<PolygonSplittingGraphNode>{node}, bridges);
             var groupNodes = new SortedList<int, PolygonSplittingGraphNode>();
             var groupBridges = new Dictionary<int, HashSet<int>>();
-            GD.PrintS("DFS'd node with id: " + node.id + ", at " + node.x + ", " + node.y);
             foreach (PolygonSplittingGraphNode connectedNode in connectedToNode)
             {
-                GD.PrintS("DFS's group which contains: " + connectedNode.id + ", at " + connectedNode.x + ", " + connectedNode.y);
                 visited.Add(connectedNode);
                 groupNodes.Add(connectedNode.id, connectedNode);
                 if (bridges.ContainsKey(connectedNode.id))
@@ -52,7 +38,7 @@ public static class MinCycleSetupHelper
                     groupBridges[connectedNode.id] = bridges[connectedNode.id];
                 }
             }
-            connectedGroups.Add(id, new ConnectedNodeGroup(id, groupNodes, adjMatrix, groupBridges));
+            connectedGroups.Add(id, new ConnectedNodeGroup(id, groupNodes, groupBridges));
             id++;
         }
         return connectedGroups;
@@ -79,7 +65,7 @@ public static class MinCycleSetupHelper
                 }
             }
         }
-        return _SimplifyNestedGroups(connectedGroups, idsContainedInGroup);
+        return _SimplifyNestedGroups(idsContainedInGroup);
     }
 
     /// <summary>
@@ -94,8 +80,7 @@ public static class MinCycleSetupHelper
     /// </summary>
     /// <param name="idsContainedInGroup"></param>
     /// <returns></returns>
-    private static SortedDictionary<int, HashSet<int>> _SimplifyNestedGroups(SortedList<int, ConnectedNodeGroup> connectedGroups,
-                                                                             SortedDictionary<int, HashSet<int>> idsContainedInGroup)
+    private static SortedDictionary<int, HashSet<int>> _SimplifyNestedGroups(SortedDictionary<int, HashSet<int>> idsContainedInGroup)
     {
         var simplifiedIdsContainedInGroup = new SortedDictionary<int, HashSet<int>>();
         foreach (int outsideGroupID in idsContainedInGroup.Keys)
@@ -110,27 +95,5 @@ public static class MinCycleSetupHelper
         }
         return simplifiedIdsContainedInGroup;
     }
-
-    public static Dictionary<PolygonSplittingGraphNode, HashSet<int>> InitRemovedEdges(SortedList<int, PolygonSplittingGraphNode> nodes,
-                                                                                       SortedList<int, ConnectedNodeGroup> nodeGroups)
-    {
-        Dictionary<PolygonSplittingGraphNode, HashSet<int>> removedEdges =
-            nodes.Values.ToDictionary(node => node, node => new HashSet<int>());
-
-        foreach (ConnectedNodeGroup group in nodeGroups.Values)
-        {
-            foreach (int bridgeID in group.bridges.Keys)
-            {
-                PolygonSplittingGraphNode bridgeNode = nodes[bridgeID];
-                foreach (int bridgeConn in group.bridges[bridgeID])
-                {
-                    removedEdges[bridgeNode].Add(bridgeConn);
-                }
-            }
-        }
-        
-        return removedEdges;
-    }
-
 }
 }

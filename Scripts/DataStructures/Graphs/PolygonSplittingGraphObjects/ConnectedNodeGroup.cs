@@ -14,27 +14,78 @@ public class ConnectedNodeGroup : IComparable
 {
     public int id { get; }
     public SortedList<int, PolygonSplittingGraphNode> nodes { get; }
-    private readonly SortedDictionary<PolygonSplittingGraphNode, int> _xySortedNodes;
     public List<PolygonSplittingGraphNode> outerPerimNodes { get; }
     public Vector2[] outerPerimSimplified { get; }
     public Dictionary<int, HashSet<int>> bridges { get; }
-    public float area { get; }
+
+    private const int NIL = -1;
+    private const int NUM_SIDES = 4;
+    private readonly SortedDictionary<PolygonSplittingGraphNode, int> _xySortedNodes;
+    private readonly Dictionary<int, List<int>> ccwAdjOrdering;
+    private float area { get; }
     
-    public ConnectedNodeGroup(int id, SortedList<int, PolygonSplittingGraphNode> nodes, int[,] adjMatrix,
+    public ConnectedNodeGroup(int id, SortedList<int, PolygonSplittingGraphNode> nodes,
                               Dictionary<int, HashSet<int>> bridges = null)
     {
         if (bridges == null) bridges = new Dictionary<int, HashSet<int>>();
         this.id = id;
         this.nodes = nodes;
+        this.ccwAdjOrdering = _ComputeCCWAdjacencyOrdering();
         this._xySortedNodes = new SortedDictionary<PolygonSplittingGraphNode, int>();
         foreach (KeyValuePair<int, PolygonSplittingGraphNode> idToNode in this.nodes)
         {
             this._xySortedNodes.Add(idToNode.Value, idToNode.Key);
         }
-        this.outerPerimNodes = this._FindOuterPerim(adjMatrix);
+        this.outerPerimNodes = this._FindOuterPerim();
         this.outerPerimSimplified = this._SimplifyOuterPerim();
         this.bridges = bridges;
         this.area = this._CalculateArea();
+    }
+
+    private Dictionary<int, List<int>> _ComputeCCWAdjacencyOrdering()
+    {
+        var localCCWAdjOrdering = new Dictionary<int, List<int>>();
+        foreach (PolygonSplittingGraphNode node in this.nodes.Values)
+        {
+            if (node.connectedNodeIDs.Count > 2)
+            { //no point ordering anything with 2 or less connections
+                localCCWAdjOrdering[node.id] = Enumerable.Repeat(NIL, NUM_SIDES).ToList();
+                var origin = new Vector2(node.x, node.y);
+                foreach (int connID in node.connectedNodeIDs)
+                {
+                    if (!this.nodes.ContainsKey(connID)) continue;
+                    Vector2 connDir = (new Vector2(this.nodes[connID].x, this.nodes[connID].y) - origin).Normalized();
+                    int connVal = Globals.GetCCWVectorValue(connDir);
+                    if (connVal != -1) localCCWAdjOrdering[node.id][connVal] = connID;
+                }
+                localCCWAdjOrdering[node.id].RemoveAll(x => x == NIL);
+            }
+            else
+            {
+                localCCWAdjOrdering[node.id] = new List<int>();
+                localCCWAdjOrdering[node.id].AddRange(node.connectedNodeIDs);
+            }
+        }
+        return localCCWAdjOrdering;
+    }
+
+    /// <summary>
+    /// Sorts two PolygonSplittingGraphNode IDs by their CCW orientation around some origin coordinate.
+    /// The order is North is always first, followed by West, South, East, etc.
+    /// </summary>
+    /// <param name="aID">ID of first node.</param>
+    /// <param name="bID">ID of second node.</param>
+    /// <param name="origin">Coordinate of node that A and B are being ordered around.</param>
+    /// <returns>Less than 0 if A is of a lower 'value' direction than B, more than 0 if the opposite, and 0 if they are
+    /// the same direction.</returns>
+    private int _SortCCWAdjacent(int aID, int bID, Vector2 origin)
+    {
+        Vector2 aDir = new Vector2(this.nodes[aID].x, this.nodes[aID].y).Normalized();
+        Vector2 bDir = new Vector2(this.nodes[bID].x, this.nodes[bID].y).Normalized();
+        int aValue = Globals.GetCCWVectorValue(aDir);
+        int bValue = Globals.GetCCWVectorValue(bDir);
+
+        return (aValue - bValue);
     }
 
     /// <summary>
@@ -49,7 +100,7 @@ public class ConnectedNodeGroup : IComparable
     /// </summary>
     /// <param name="adjMatrix">Adjacency Matrix of nodes.</param>
     /// <returns>List of nodes in CCW order that describe the outer perimeter.</returns>
-    private List<PolygonSplittingGraphNode> _FindOuterPerim(int[,] adjMatrix)
+    private List<PolygonSplittingGraphNode> _FindOuterPerim()
     {
         PolygonSplittingGraphNode startVertex = this._xySortedNodes.First().Key;
         var localOuterPerim = new List<PolygonSplittingGraphNode>{startVertex};
@@ -58,12 +109,9 @@ public class ConnectedNodeGroup : IComparable
         do
         {
             var validNeighbours = new HashSet<PolygonSplittingGraphNode>();
-            for (int i = 0; i < adjMatrix.GetLength(1); i++)
+            foreach (int neighbourID in currentVertex.connectedNodeIDs.Where(neighbourID => this.nodes.ContainsKey(neighbourID)))
             {
-                if (adjMatrix[currentVertex.id, i] == 1 && this.nodes.ContainsKey(i))
-                {
-                    validNeighbours.Add(this.nodes[i]);
-                }
+                validNeighbours.Add(this.nodes[neighbourID]);
             }
             PolygonSplittingGraphNode nextNeighbour = this._ChooseNextNeighbour(currentVertex, bearing, validNeighbours);
             localOuterPerim.Add(nextNeighbour);
@@ -173,6 +221,30 @@ public class ConnectedNodeGroup : IComparable
         return sharedVertices;
     }
 
+    /// <summary>
+    /// Uses the <param>currentNodeID</param>'s CCW ordering to select the node ID immediately after
+    /// <param>prevNodeID</param>. If currentNodeID is not part of this ConnectedNodeGroup, or <param>prevNodeID</param>
+    /// is not a connection in <param>currentNodeID</param>'s CCW ordering, returns -1.
+    /// </summary>
+    /// <param name="prevNodeID"></param>
+    /// <param name="currentNodeID"></param>
+    /// <returns></returns>
+    public int GetCCWNextNodeID(int prevNodeID, int currentNodeID)
+    {
+        if (!this.ccwAdjOrdering.ContainsKey(currentNodeID)) return NIL;
+        List<int> currentCCWConns = this.ccwAdjOrdering[currentNodeID];
+        int nextNodeID = -1;
+        for (int i = 0; i < currentCCWConns.Count; i++)
+        {
+            if (prevNodeID == currentCCWConns[i])
+            {
+                nextNodeID = currentCCWConns[(i + 1) % currentCCWConns.Count];
+                break;
+            }
+        }
+        return nextNodeID;
+    }
+    
     /// <summary>
     /// Checks if the other group's outer perimeter is inside this group's perimeter.  Inclusive of the two groups
     /// sharing vertices.

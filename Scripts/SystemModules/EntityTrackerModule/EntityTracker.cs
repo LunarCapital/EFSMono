@@ -5,6 +5,7 @@ using EFSMono.Scripts.SystemModules.PhysicsControllerModule.HubMessages;
 using Godot;
 using TinyMessenger;
 using System.Collections.Generic;
+using EFSMono.Scripts.SystemModules.EntityTrackerModule.HubMessages;
 // ReSharper disable ClassNeverInstantiated.Global
 
 namespace EFSMono.Scripts.SystemModules.EntityTrackerModule
@@ -33,8 +34,7 @@ public class EntityTracker : Node2D
     /// <param name="tileMaps">A list of all TileMaps in the world.</param>
     public void LoadWorld(TileMapList tileMaps)
     {        
-        this._toPhysicsHub.Subscribe<FloorsConstructedMessage>((msg) => 
-                                                               this._HandleFloorsConstructed(tileMaps, msg));
+        this._toPhysicsHub.Subscribe<FloorsConstructedMessage>((msg) => this._HandleFloorsConstructed(tileMaps, msg));
         this._entities = new List<Entity>();
         foreach (TileMap tileMap in tileMaps.Values)
         {
@@ -44,10 +44,21 @@ public class EntityTracker : Node2D
             }
         }
     }
+
+    /// <summary>
+    /// Handle all the tasks that need to happen when an entity changes a layer, AKA it no longer collides with walls
+    /// and ledges on different layers.
+    /// </summary>
+    /// <param name="entity">Entity that changed Z index.</param>
+    /// <param name="zIndex">New Z index that <param>entity</param> is now on.</param>
+    private void _HandleEntityZIndexChange(Entity entity, int zIndex)
+    {
+        this._toPhysicsHub.Publish(new EntityChangedZIndexMessage(this, entity.GetRid(), zIndex));
+    }
     
     /// <summary>
     /// Connects floor Area2Ds to a callback function in this class. 
-    /// Passed to physics MessageHub subscription and is fired when PhysicsController finishes building floor Area2Ds.
+    /// Passed from physics MessageHub subscription and is fired when PhysicsController finishes building floor Area2Ds.
     /// </summary>
     /// <param name="tileMaps">A list of all TileMaps.</param>
     /// <param name="msg">Message received from TinyMessageHub notifying this class that floor Area2Ds have been created.</param>
@@ -58,8 +69,13 @@ public class EntityTracker : Node2D
             RID area2dRID = msg.GetRidFromTilemap(tileMap);
             Physics2DServer.AreaSetMonitorCallback(area2dRID, this, nameof(this._OnAreaCallback));
         }
+        foreach (Entity entity in this._entities)
+        {
+            this._HandleEntityZIndexChange(entity, ((TileMap)entity.GetParent()).ZIndex - 1);
+        }
     }
 
+    private HashSet<int> _occupiedShapeIDs = new HashSet<int>();
     /// <summary>
     /// Keeps track of what Area2Ds each entity is touching.
     /// Fires when an Area2D reports that a PhysicsBody has entered or exited one of its shapes.
@@ -72,7 +88,20 @@ public class EntityTracker : Node2D
     private void _OnAreaCallback(Physics2DServer.AreaBodyStatus bodyStatus, RID bodyRID, int bodyInstanceID, 
                                  int bodyShapeID, int areaShapeID)
     {
-        
+        if (bodyStatus == Physics2DServer.AreaBodyStatus.Added)
+        {
+            this._occupiedShapeIDs.Add(areaShapeID);
+            GD.PrintS("body " + bodyRID.GetId() + " with instance " + bodyInstanceID + " and shape " + bodyShapeID + " entered shapeID: " + areaShapeID + ". # of occ shapes: " + this._occupiedShapeIDs.Count);
+        }
+        else
+        {
+            this._occupiedShapeIDs.Remove(areaShapeID);
+            GD.PrintS("body " + bodyRID.GetId() + " with instance " + bodyInstanceID + " and shape " + bodyShapeID + " exited shapeID: " + areaShapeID + ". # of occ shapes: " + this._occupiedShapeIDs.Count);
+            if (this._occupiedShapeIDs.Count == 0)
+            {
+                GD.PrintS("WE FALL");
+            }
+        }
     }
 }
 }

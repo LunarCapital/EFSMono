@@ -6,7 +6,7 @@ using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects;
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Perimeter;
 using Godot;
 using System.Collections.Generic;
-using EFSMono.Scripts.SystemModules.PhysicsControllerModule.RIDConstructors.PolygonPartitioning.PolygonObjects;
+using static EFSMono.Scripts.Autoload.LayersFuncs.CollisionLayers;
 
 namespace EFSMono.Scripts.SystemModules.PhysicsControllerModule.RIDConstructors
 {
@@ -65,8 +65,9 @@ namespace EFSMono.Scripts.SystemModules.PhysicsControllerModule.RIDConstructors
 ///
 /// Credit to: https://nanoexplanations.wordpress.com/2011/12/02/polygon-rectangulation-part-1-minimum-number-of-rectangles/
 /// for part of the explanation, mainly about conversion of polygons-with-chords to chord-less-polygons via the MIS.
-/// Extraction of both rectangles and chord-less-polygons via Minimum Cycles and Outer Perimeters and Node Covers and
-/// whatever else is my own solution and thus may be sub-optimal and/or unnecessarily long/over-engineered.  
+/// Extraction of both rectangles and chord-less-polygons via Planar Face and Outer Perimeters and Node Covers and
+/// whatever else involves solutions that I scraped together from the internet and thus may be sub-optimal and/or
+/// unnecessarily long/over-engineered.  
 /// </summary>
 public static class FloorConstructor
 {
@@ -89,6 +90,10 @@ public static class FloorConstructor
         foreach (TileMap tileMap in tileMaps.Values)
         {
             RID area2dRID = tileMapToFloorArea2Ds[tileMap];
+            floorArea2DToPolygons[area2dRID] = new List<ConvexPolygonShape2D>();
+            Physics2DServer.AreaSetCollisionLayer(area2dRID, LayersFuncs.GetLayersValue(TERRAIN));
+            Physics2DServer.AreaSetCollisionMask(area2dRID, LayersFuncs.GetLayersValue(PLAYER_ENTITY, NPC_ENTITY));
+            
             int maxTileGroups = perimData.GetMaxTileGroup(tileMap);
             for (int tileGroup = 0; tileGroup < maxTileGroups; tileGroup++)
             {
@@ -104,7 +109,7 @@ public static class FloorConstructor
                 {
                     Physics2DServer.AreaAddShape(area2dRID, shape.GetRid());
                 }
-                floorArea2DToPolygons[area2dRID] = partitionedRectangles;
+                floorArea2DToPolygons[area2dRID].AddRange(partitionedRectangles);
             }
         }
         return floorArea2DToPolygons;
@@ -135,13 +140,6 @@ public static class FloorConstructor
 
         foreach (List<Vector2> rectangle in allRectangles)
         {
-            GD.PrintS("Rectangle? Has perims: ");
-            foreach (Vector2 vertex in rectangle)
-            {
-                GD.PrintS(vertex);
-            }
-
-            
             List<Vector2> carteRectangle = AxisFuncs.CoordArrayToCarteAxis(rectangle);
             var cps2d = new ConvexPolygonShape2D()
             {

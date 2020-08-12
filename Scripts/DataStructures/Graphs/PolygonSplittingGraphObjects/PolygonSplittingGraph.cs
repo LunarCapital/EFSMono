@@ -1,12 +1,8 @@
-﻿using System;
-using System.Linq;
-using EFSMono.Scripts.Autoload;
-using EFSMono.Scripts.DataStructures.Geometry;
+﻿using EFSMono.Scripts.DataStructures.Geometry;
 using Godot;
 using System.Collections.Generic;
 using static EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects.MinCycleSetupHelper;
 using static EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects.MinCycleProcessingHelper;
-using static EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects.MinCycleManagementHelper;
 
 namespace EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects
 {
@@ -27,28 +23,12 @@ namespace EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects
 /// </summary>    
 public class PolygonSplittingGraph : GenericGraph<PolygonSplittingGraphNode>
 {
-    private readonly SortedDictionary<PolygonSplittingGraphNode, int> _xySortedNodes;
     private readonly List<Vector2>[] _holes;
 
     public PolygonSplittingGraph(IReadOnlyCollection<PolygonSplittingGraphNode> nodeCollection, List<List<Vector2>> holes = null) : base(nodeCollection)
     {
         if (holes == null) holes = new List<List<Vector2>>();
         this._holes = holes.ToArray();
-    }
-    
-    public PolygonSplittingGraph(IReadOnlyCollection<PolygonSplittingGraphNode> nodeCollection, List<Vector2>[] allIsoPerims) : base(nodeCollection)
-    {
-        SortedDictionary<PolygonSplittingGraphNode, int> xySortedNodes;
-        this._xySortedNodes = new SortedDictionary<PolygonSplittingGraphNode, int>();
-        foreach (KeyValuePair<int, PolygonSplittingGraphNode> idToNode in this.nodes)
-        {
-            this._xySortedNodes.Add(idToNode.Value, idToNode.Key);
-        }
-        this._holes = new List<Vector2>[allIsoPerims.Length - 1];
-        for (int i = 1; i < allIsoPerims.Length; i++)
-        { //ignore i = 0 as it's the only non-hole perimeter
-            this._holes[i - 1] = allIsoPerims[i];
-        }
     }
 
     /// <summary>
@@ -58,36 +38,13 @@ public class PolygonSplittingGraph : GenericGraph<PolygonSplittingGraphNode>
     /// <returns>Return a List of Lists of Vector2s, that describes the min cycles of this polygon.</returns>
     public List<ChordlessPolygon> GetMinCycles()
     {
-        SortedList<int, ConnectedNodeGroup> connectedGroups = GetConnectedGroups(this.nodes, this.adjMatrix, this.GetDFSCover);
+        SortedList<int, ConnectedNodeGroup> connectedGroups = GetConnectedGroups(this.nodes, this.GetDFSCover);
         SortedDictionary<int, HashSet<int>> idsContainedInGroup = StoreNestedGroups(connectedGroups);
-
-        foreach (ConnectedNodeGroup node in connectedGroups.Values)
-        {
-            GD.PrintS("connectedgroup with id: " + node.id + " has perim: ");
-            foreach (Vector2 vertex in node.outerPerimSimplified)
-            {
-                GD.PrintS(vertex);
-            }
-            foreach (int id in node.nodes.Keys)
-            {
-                GD.PrintS("id in conn group: " + id);
-            }
-        }
-
-        foreach (int outsideID in idsContainedInGroup.Keys)
-        {
-            foreach (int insideID in idsContainedInGroup[outsideID])
-            {
-                GD.PrintS("group " + insideID + " is inside " + outsideID);
-            }
-        }
-        
         var minCycles = new List<ChordlessPolygon>();
         foreach (ConnectedNodeGroup connectedGroup in connectedGroups.Values)
         {
-            Dictionary<PolygonSplittingGraphNode, HashSet<int>> removedEdges = InitRemovedEdges(this.nodes, connectedGroups);
             minCycles.AddRange(PartitionConnectedNodeGroup(connectedGroup, idsContainedInGroup, connectedGroups,
-                                                                     removedEdges, this.nodes, this.adjMatrix, this._holes));
+                                                                    this.nodes, this._holes));
         }
         return minCycles;
     }

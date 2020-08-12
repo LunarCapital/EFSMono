@@ -26,10 +26,11 @@ SortFuncs="*res://Scripts/Autoload/SortFuncs.cs"
 TileFuncs="*res://Scripts/Autoload/TileFuncs.cs"
 AxisFuncs="*res://Scripts/Autoload/AxisFuncs.cs"
 GeometryFuncs="*res://Scripts/Autoload/GeometryFuncs.cs"
+LayersFuncs="*res://Scripts/Autoload/LayersFuncs.cs"
 
 [display]
 
-window/stretch/mode="2d"
+window/stretch/mode="viewport"
 window/stretch/aspect="keep"
 
 [importer_defaults]
@@ -129,6 +130,12 @@ move_left={
 "events": [ Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":0,"alt":false,"shift":false,"control":false,"meta":false,"command":false,"pressed":false,"scancode":65,"unicode":0,"echo":false,"script":null)
  ]
 }
+
+[layer_names]
+
+2d_physics/layer_1="Terrain"
+2d_physics/layer_2="PlayerEntity"
+2d_physics/layer_3="NPCEntity"
 
 [logging]
 

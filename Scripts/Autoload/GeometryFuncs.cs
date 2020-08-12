@@ -10,10 +10,10 @@ namespace EFSMono.Scripts.Autoload
 /// Auto loaded script.
 /// Contains easily accessible geometry-related functions.
 /// </summary>
-public static class GeometryFuncs
+public class GeometryFuncs : Node
 {
     /// <summary>
-    /// Checks if two line segments are parallel, inclusive of segments in opposite directions.
+    /// Checks if two line segments are parallel.
     /// </summary>
     /// <param name="line1A">Line 1's point A.</param>
     /// <param name="line1B">Line 1's point B.</param>
@@ -23,8 +23,10 @@ public static class GeometryFuncs
     public static bool AreSegmentsParallel(Vector2 line1A, Vector2 line1B,
                                            Vector2 line2A, Vector2 line2B)
     {
-        float gradient1 = Mathf.Abs((line1B.y - line1A.y) / (line1B.x - line1A.x));
-        float gradient2 = Mathf.Abs((line2B.y - line2A.y) / (line2B.x - line2A.x));
+        if (line1A.x == line1B.x) return line2A.x == line2B.x;
+        if (line1A.y == line1B.y) return line2A.y == line2B.y;
+        float gradient1 = /*Mathf.Abs*/((line1B.y - line1A.y) / (line1B.x - line1A.x));
+        float gradient2 = /*Mathf.Abs*/((line2B.y - line2A.y) / (line2B.x - line2A.x));
         return (gradient1 == gradient2);
     }
     
@@ -48,7 +50,7 @@ public static class GeometryFuncs
         float y2 = line1B.y;
         float x3 = line2A.x;
         float y3 = line2A.y; //if orientation is the same, doesn't matter which point from line2 we use
-        return (0 == x1*y2 + x2*y3 + x3*y1 - x1*y3 - x2*y1 - x3*y2);
+        return 0 == x1*y2 + x2*y3 + x3*y1 - x1*y3 - x2*y1 - x3*y2;
     }
 
     /// <summary>
@@ -69,16 +71,20 @@ public static class GeometryFuncs
                                          Vector2 line2A, Vector2 line2B)
     {
         if (!AreSegmentsCollinear(line1A, line1B, line2A, line2B)) return false;
-        float[] line1 = {line1A.Length() - line1A.Length(), line1B.Length() - line1A.Length()};
-        float[] line2 = {line2A.Length() - line1A.Length(), line2B.Length() - line1A.Length()}; //parametrised for easy comparison
+        //float[] line1 = {line1A.Length() - line1A.Length(), line1B.Length() - line1A.Length()};
+        //float[] line2 = {line2A.Length() - line1A.Length(), line2B.Length() - line1A.Length()}; //parametrised for easy comparison
+        float[] line1 = {line1A.DistanceSquaredTo(line1A), line1B.DistanceSquaredTo(line1A)};
+        float line2Amod = (line1A.DirectionTo(line1B) == line1A.DirectionTo(line2A)) ? 1 : -1;
+        float line2Bmod = (line1A.DirectionTo(line1B) == line1A.DirectionTo(line2B)) ? 1 : -1; //to sign distances, as vector distances are always magnitudes
+        float[] line2 = {line2A.DistanceSquaredTo(line1A) * line2Amod, line2B.DistanceSquaredTo(line1A) * line2Bmod}; //parametrised for easy comparison
         Array.Sort(line1);
         Array.Sort(line2);
-
+        
         if (line1[0] == line2[0] && line1[1] == line2[1]) {
             return true; //lines are the same. (without this condition the next one returns false)
         }
 
-        return !(line2[1] <= line1[0]) && !(line1[1] <= line2[0]); // <= because two collinear lines connected but one point do not count as overlapping
+        return !(line2[1] <= line1[0]) && !(line1[1] <= line2[0]); // <= because two collinear lines connected at one point do not count as overlapping
     }
 
     /// <summary>
@@ -116,11 +122,11 @@ public static class GeometryFuncs
     /// Checks if a polygon is ordered in CCW order using the shoelace formula.
     /// Assumes that the polygon's points are in order.
     /// </summary>
-    /// <param name="perim"></param>
+    /// <param name="perimVertices"></param>
     /// <returns>True if CCW, false otherwise.</returns>
     public static bool IsPolygonCCW(Vector2[] perimVertices)
     {
-        return _GetRawAreaOfPolygon(perimVertices) > 0;
+        return _GetRawAreaOfPolygon(perimVertices) < 0;
     }
     
     /// <summary>
@@ -185,33 +191,20 @@ public static class GeometryFuncs
                 }
             }
         }
-
         return IsPointInPoly(innerPoly.First(), outerPoly);
     }
 
     /// <summary>
-    /// Checks if the <param>point</param> is inside the <param>poly</param> using the ray-crossing method.
-    /// Assumes simple polygon, AKA no holes.
+    /// Checks if the <param>point</param> is inside the <param>poly</param> using the winding number method.
+    /// Note that the WN method works even for self-intersecting polygons, or polygons that have a hole that is not
+    /// explicitly defined, HOWEVER, a point on the segment of the polygon IS considered by the WN method to be 'inside'
+    /// said polygon.
     /// </summary>
     /// <param name="point">Point being checked.</param>
     /// <param name="poly">Representation of a polygon as an array of Vector2s in CCW order.</param>
     /// <returns>True if the point is inside the polygon, false otherwise.</returns>
     public static bool IsPointInPoly(Vector2 point, Vector2[] poly)
     {
-        /*float lowestY = poly.Aggregate((v1, v2) => v1.y < v2.y ? v1 : v2).y;
-
-        int numOfCrossings = 0;
-        for (int i = 0; i < poly.Length; i++)
-        {
-            Vector2 pointA = poly[i];
-            Vector2 pointB = poly[(i + 1) % poly.Length];
-            if (DoSegmentsIntersect(point, new Vector2(point.x, lowestY - 1), pointA, pointB) ||
-                DoSegmentsOverlap(point, new Vector2(point.x, lowestY - 1), pointA, pointB))
-            {
-                numOfCrossings++;
-            }
-        }
-        return numOfCrossings % 2 != 0;*/
         return WindingNumOfPointInPoly(point, poly) != 0;
     }
 
@@ -226,7 +219,6 @@ public static class GeometryFuncs
     /// <returns>Winding number of <param>poly</param> around <param>point</param></returns>
     private static int WindingNumOfPointInPoly(Vector2 point, Vector2[] poly)
     {
-        bool debugSwitch = (point == new Vector2(160, 64));
         int windingNum = 0;
         for (int i = 0; i < poly.Length - 1; i++)
         {
@@ -236,7 +228,6 @@ public static class GeometryFuncs
             {
                 if (nextVertex.y > point.y && IsLeft(thisVertex, nextVertex, point) > 0)
                 {
-                    if (debugSwitch) GD.PrintS("rule 1");
                     windingNum++;
                 }
             }
@@ -244,7 +235,6 @@ public static class GeometryFuncs
             {
                 if (nextVertex.y <= point.y && IsLeft(thisVertex, nextVertex, point) < 0)
                 {
-                    if (debugSwitch) GD.PrintS("rule 2");
                     windingNum--;
                 }
             }
@@ -264,10 +254,45 @@ public static class GeometryFuncs
     {
         return (p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y);
     }
+
+    /// <summary>
+    /// Checks if the input <param>point</param> lies on one of <param>poly</param>'s segments. The existence of this
+    /// method is necessary because IsPointInPoly uses the winding-number method which returns true for a check involving
+    /// a point that is on one of the polygon's segments (and we may want to exclude that case, so we use this method).
+    /// </summary>
+    /// <param name="point"></param>
+    /// <param name="poly">A polygon that is assumed to be using the closed loop convention.</param>
+    /// <returns>True if <param>point</param> is on one of <param>poly</param>'s segments, false otherwise.</returns>
+    public static bool IsPointOnPolyBoundary(Vector2 point, Vector2[] poly)
+    {
+        bool pointIsOnPolyBoundary = false;
+        for (int i = 0; i < poly.Length - 1; i++)
+        {
+            Vector2 thisVertex = poly[i];
+            Vector2 nextVertex = poly[i + 1];
+            if (point == thisVertex || point == nextVertex)
+            {
+                pointIsOnPolyBoundary = true;
+                break;
+            }
+            if (AreSegmentsCollinear(thisVertex, point, point, nextVertex))
+            {
+                float lineAGradient = (point.y - thisVertex.y) / (point.x - thisVertex.x);
+                float lineBGradient = (nextVertex.y - point.y) / (nextVertex.x - point.x);
+                if ((lineAGradient >= 0 && lineBGradient >= 0) || (lineAGradient <= 0 && lineBGradient <= 0))
+                {
+                    pointIsOnPolyBoundary = true;
+                    break;
+                }
+            }
+        }
+        return pointIsOnPolyBoundary;
+    }
     
     /// <summary>
     /// Checks if the input polygons are identical, even if they are out of order or one is CW and the other is CCW, etc.
-    /// Assumes that the polygon's edges do not intersect itself.
+    /// Assumes that the polygon's edges do not intersect itself, and does not work if one polygon has been simplified
+    /// and the other has not.
     /// </summary>
     /// <param name="polyA"></param>
     /// <param name="polyB"></param>

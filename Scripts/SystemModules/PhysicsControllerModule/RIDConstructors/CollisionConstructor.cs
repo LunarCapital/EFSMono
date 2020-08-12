@@ -6,6 +6,7 @@ using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Led
 using EFSMono.Scripts.SystemModules.TileProcessorModule.TileProcessorObjects.Perimeter;
 using Godot;
 using System.Collections.Generic;
+using static EFSMono.Scripts.Autoload.LayersFuncs.CollisionLayers;
 
 namespace EFSMono.Scripts.SystemModules.PhysicsControllerModule.RIDConstructors {
 /// <summary>
@@ -45,6 +46,8 @@ public static class CollisionConstructor
             Physics2DServer.BodySetMode(edgeSB2D, Physics2DServer.BodyMode.Static);
             Physics2DServer.BodySetSpace(edgeSB2D, worldSpace);
             Physics2DServer.BodySetState(edgeSB2D, Physics2DServer.BodyState.Transform, Transform2D.Identity);
+            Physics2DServer.BodySetCollisionLayer(edgeSB2D, LayersFuncs.GetLayersValue(TERRAIN));
+            Physics2DServer.BodySetCollisionMask(edgeSB2D, LayersFuncs.GetLayersValue(PLAYER_ENTITY, NPC_ENTITY));
             tileMapToSB2Ds.Add(tileMap, edgeSB2D);
         }
         return tileMapToSB2Ds;

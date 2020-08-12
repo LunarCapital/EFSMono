@@ -12,169 +12,77 @@ namespace EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects
 public static class MinCycleManagementHelper
 {
     /// <summary>
-    /// Finds all nodes that have exactly two valid ledges.
+    /// This method uses wikipedia's definition of 'simple' and 'complex' for polygons, found here:
+    /// https://en.wikipedia.org/wiki/Simple_polygon
+    /// The idea is that this method exists to check if a cycle:
+    ///     1. Self-intersects
+    ///     2. Or has a hole.
+    /// Which is done by checking if the cycle has MORE THAN ONE INSTANCE of a vertex appearing TWICE OR MORE TIMES,
+    /// as the only way a single cycle (extracted from what is essentially a planar graph WITHOUT BRIDGES) would have
+    /// a hole is if it also self-intersects, or two parts of the polygon 'share' a vertex (which may also be
+    /// self-intersection, I don't actually know because it's not easy for my caveman brain to de-encrypt math-heavy
+    /// descriptions/definitions).  The simplest case is a 3x3 square with the middle removed, AND also one corner removed,
+    /// as this shape can be defined by a single cycle that pretty much describes a long rectangle that was bent into that
+    /// shape until it touches its own corner.
+    ///
+    /// (Incoming mini-rant) I am completely unsure if the simplest case described above counts as a complex polygon,
+    /// as you could argue that 'technically the polygon does not explicitly define a hole, the hole exists because of
+    /// the way that its perimeter is defined', but you could also argue that the "infinite planar-face outside of the
+    /// polygon technically is complex in of itself because it self-intersects to form the 1x1 square inside the polygon".
+    /// I don't know.  All I know is that these kind of cases add nothing to the algorithm because they just give more
+    /// work for ChordlessPolygonDecomposer to do down the line, and it doesn't even matter because any rectangles that
+    /// can be formed out of a complex cycle can also be formed out of the simpler cycles extracted from the same
+    /// ConnectedGroup.
     /// </summary>
-    /// <param name="connectedGroup"></param>
-    /// <param name="removedEdges"></param>
-    /// <param name="adjMatrix"></param>
-    /// <returns>List of nodes with exactly two valid ledges.</returns>
-    public static List<PolygonSplittingGraphNode> GetAllNodesWithOnlyTwoEdges(ConnectedNodeGroup connectedGroup,
-                                               Dictionary<PolygonSplittingGraphNode, HashSet<int>> removedEdges,
-                                               int[,] adjMatrix)
+    /// <param name="cyclePerim"></param>
+    /// <returns>False if <param>cyclePerim</param> has one or less duplicate vertex, true otherwise.  This is because a
+    /// non-complex cycle will have at most one duplicate vertex, which is its first and last vertex due to the
+    /// convention that a closed loop vector array has array.first == array.last.</returns>
+    public static bool IsCycleComplex(Vector2[] cyclePerim)
     {
-        var twoEdgeNodes = new List<PolygonSplittingGraphNode>();
-        foreach (PolygonSplittingGraphNode node in connectedGroup.nodes.Values)
+        int duplicateCount = 0;
+        var vertices = new HashSet<Vector2>();
+        foreach (Vector2 vertex in cyclePerim)
         {
-            if (GetNumOfNodesValidEdges(connectedGroup, node, removedEdges[node], adjMatrix) == 2)
-            {
-                twoEdgeNodes.Add(node);
-            }
+            if (!vertices.Contains(vertex)) vertices.Add(vertex);
+            else duplicateCount++;
         }
-        return twoEdgeNodes;
+        return duplicateCount > 1;
     }
     
     /// <summary>
-    /// Counts the number of valid edges a vertex has, given that:
-    ///     1. It is within a ConnectedNodeGroup and can only connect to other vertices within that group
-    ///     2. Edges that have been removed (and are in <param>removedIDs</param>) are not counted 
+    /// Checks if the input <param>cyclePerim</param> contains any vertices in <param>nodeGroup</param> within itself
+    /// that are NOT part of its perimeter.
     /// </summary>
-    /// <param name="connectedGroup">Group that the vertex is in.</param>
-    /// <param name="node">The node (vertex) in question.</param>
-    /// <param name="removedIDs">Set of IDs of vertices that this vertex cannot travel to, AKA removed edges.</param>
-    /// <param name="adjMatrix"></param>
-    /// <param name="nodes"></param>
-    /// <returns>Number of valid edges the input vertex can travel to.</returns>
-    public static int GetNumOfNodesValidEdges(ConnectedNodeGroup connectedGroup, PolygonSplittingGraphNode node, 
-                                              HashSet<int> removedIDs, int[,] adjMatrix)
-    {
-        int count = 0;
-        for (int i = 0; i < adjMatrix.GetLength(1); i++)
-        {
-            if (adjMatrix[node.id, i] == 1 && connectedGroup.nodes.ContainsKey(i) && !removedIDs.Contains(i))
-            {
-                count++;
-                GD.PrintS("found conn at from " + node.id + " to node with id: " + i + " at coord: " + connectedGroup.nodes[i].x + ", " + connectedGroup.nodes[i].y);
-            }
-        }
-        return count;
-    }
-    
-    /// <summary>
-    /// Uses a cycle obtained by BFS to update the <param>removedEdges</param> dictionary. An edge in the cycle is only
-    /// added as a removed edge IFF either of its vertexes have two or less valid connections remaining.
-    /// </summary>
-    /// <param name="cycle">Cycle discovered by BFS.</param>
-    /// <param name="connectedGroup">Connected group of nodes.</param>
-    /// <param name="removedEdges">Dictionary of edges that have been removed.</param>
-    /// <returns>An updated dictionary of removed edges with the edges in cycle added if valid.</returns>
-    public static Dictionary<PolygonSplittingGraphNode, HashSet<int>> UpdateRemovedEdges(int[,] adjMatrix,
-                                   List<PolygonSplittingGraphNode> cycle, ConnectedNodeGroup connectedGroup,
-                                   Dictionary<PolygonSplittingGraphNode, HashSet<int>> removedEdges)
-    {
-        var updatedRemovedEdges = new Dictionary<PolygonSplittingGraphNode, HashSet<int>>();
-        foreach (PolygonSplittingGraphNode node in removedEdges.Keys)
-        {
-            updatedRemovedEdges[node] = new HashSet<int>();
-            foreach (int id in removedEdges[node])
-            {
-                updatedRemovedEdges[node].Add(id);
-            }
-        }
-
-        for (int i = 0; i < cycle.Count; i++)
-        {
-            PolygonSplittingGraphNode thisNode = cycle[i];
-            PolygonSplittingGraphNode nextNode = cycle[(i + 1) % cycle.Count];
-            if (Equals(thisNode, nextNode)) continue;
-            if (GetNumOfNodesValidEdges(connectedGroup, thisNode, removedEdges[thisNode], adjMatrix) <= 2 ||
-                GetNumOfNodesValidEdges(connectedGroup, nextNode, removedEdges[nextNode], adjMatrix) <= 2)
-            {
-                //IFF either vertex of an edge has only two or less valid connections remaining
-                GD.PrintS("removed edge between node + " + thisNode.id + " at " + thisNode.x + ", " + thisNode.y + " which had # remaining edges: " + GetNumOfNodesValidEdges(connectedGroup, thisNode, removedEdges[thisNode], adjMatrix) +  " and node " + nextNode.id + " at " + nextNode.x + ", " + nextNode.y + " which had # remaining edges: " + GetNumOfNodesValidEdges(connectedGroup, nextNode, removedEdges[nextNode], adjMatrix));
-                updatedRemovedEdges[thisNode].Add(nextNode.id);
-                updatedRemovedEdges[nextNode].Add(thisNode.id);
-            }
-        }
-        return updatedRemovedEdges;
-    }
-        
-    /// <summary>
-    /// Searches for bridges within the remaining graph and removes them for the next cycle extraction.
-    /// </summary>
-    /// <param name="connectedGroup"></param>
-    /// <param name="adjMatrix"></param>
-    /// <param name="removedEdges"></param>
+    /// <param name="cyclePerim">A planar face found within <param>connectedGroup</param>, which has a planar embedding.</param>
+    /// <param name="groupNodesPerim">A group of nodes that form the perimeter of the ConnectedNodeGroup <param>cycle</param>
+    /// was extracted from.</param>
     /// <returns></returns>
-    public static Dictionary<PolygonSplittingGraphNode, HashSet<int>> AddNewBridgesToRemovedEdges(
-            ConnectedNodeGroup connectedGroup, int[,] adjMatrix,
-            Dictionary<PolygonSplittingGraphNode, HashSet<int>> removedEdges)
+    public static bool IsCycleOuterPerim(Vector2[] cyclePerim, List<PolygonSplittingGraphNode> groupNodesPerim)
+    {
+        var groupPerim = new Vector2[groupNodesPerim.Count];
+        for (int i = 0; i < groupNodesPerim.Count; i++)
         {
-            var removedEdgesIDs = new Dictionary<int, HashSet<int>>();
-            foreach (PolygonSplittingGraphNode node in removedEdges.Keys)
-            {
-                removedEdgesIDs[node.id] = removedEdges[node];
-            }
-        
-            Dictionary<int, HashSet<int>> bridges = BridgeFinder.GetBridges(connectedGroup.nodes, adjMatrix, removedEdgesIDs);
-            var updatedRemovedEdges = new Dictionary<PolygonSplittingGraphNode, HashSet<int>>(removedEdges);
-            foreach (int bridgeID in bridges.Keys)
-            {
-                if (!connectedGroup.nodes.ContainsKey(bridgeID)) continue;
-                foreach (int neighbourID in bridges[bridgeID])
-                {
-                    updatedRemovedEdges[connectedGroup.nodes[bridgeID]].Add(neighbourID);
-                    GD.PrintS("removed bridge during cycle with IDs " + bridgeID + " to " + neighbourID + " with coords: " + connectedGroup.nodes[bridgeID].x + ", " + connectedGroup.nodes[bridgeID].y + ", " + connectedGroup.nodes[neighbourID].x + ", " + connectedGroup.nodes[neighbourID].y);
-                }
-            }
-            return updatedRemovedEdges;
+            groupPerim[i] = new Vector2(groupNodesPerim[i].x, groupNodesPerim[i].y);
         }
+        return GeometryFuncs.ArePolysIdentical(cyclePerim, groupPerim);
+    }
 
     /// <summary>
-    /// Given a list of multiple cycles, returns the one with the smallest area.
+    /// Checks if the cycle is a hole.  NOTE that no checks are done to ensure that cyclePerim is simplified, but
+    /// this is not required as holes are always passed into PolygonSplittingGraph in their most simple form, and
+    /// when extracted they keep the same vertices.
+    /// Q: "But what if a bridge or chord or something connects the outside perimeter to a point on a hole where a vertex
+    /// does not already exist?"
+    /// A: This will never happen as the only way a hole will be connected to anything else is via a chord, which MUST
+    /// be attached to a concave vertex.
     /// </summary>
-    /// <param name="allCycles">List of lists of PolygonSplittingGraphNodes, each list representing a cycle.</param>
-    /// <returns>The smallest cycle in the input list.</returns>
-    public static List<PolygonSplittingGraphNode> GetSmallestCycle(List<List<PolygonSplittingGraphNode>> allCycles)
-    {
-        GD.PrintS("starting getSMALLESTCYCLE, # of cycles: " + allCycles.Count);
-        int smallCycleID = 0;
-        float minArea = float.PositiveInfinity;
-        for (int cycleID = 0; cycleID < allCycles.Count; cycleID++)
-        {
-            GD.PrintS("cycleID: " + cycleID);
-            List<PolygonSplittingGraphNode> cycle = allCycles[cycleID];
-            var perim = new Vector2[cycle.Count];
-            for (int i = 0; i < cycle.Count; i++)
-            {
-                GD.PrintS("node id in cycle: " + i);
-                PolygonSplittingGraphNode node = cycle[i];
-                perim[i] = new Vector2(node.x, node.y);
-            }
-            float perimArea = GeometryFuncs.GetAreaOfPolygon(perim);
-            if (perimArea < minArea)
-            {
-                smallCycleID = cycleID;
-                minArea = perimArea;
-            }
-        }
-        return allCycles[smallCycleID];
-    }
-    
-    /// <summary>
-    /// Checks if the cycle is a hole.
-    /// </summary>
-    /// <param name="cycle">Cycle discovered from BFS></param>
+    /// <param name="cyclePerim">Cycle discovered from planar graph.></param>
     /// <param name="holes">List of holes (which are a list of Vector2s).</param>
     /// <returns>True if the cycle is a hole, false otherwise.</returns>
-    public static bool IsCycleHole(List<PolygonSplittingGraphNode> cycle, List<Vector2>[] holes)
+    public static bool IsCycleHole(Vector2[] cyclePerim, List<Vector2>[] holes)
     {
-        var cycleAsVectorArray = new Vector2[cycle.Count];
-        for (int i = 0; i < cycle.Count; i++)
-        {
-            PolygonSplittingGraphNode node = cycle[i];
-            cycleAsVectorArray[i] = new Vector2(node.x, node.y);
-        }
-        return holes.Any(hole => GeometryFuncs.ArePolysIdentical(cycleAsVectorArray, hole.ToArray()));
+        return holes.Any(hole => GeometryFuncs.ArePolysIdentical(cyclePerim, hole.ToArray()));
     }
 }
 }

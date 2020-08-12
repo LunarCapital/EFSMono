@@ -21,10 +21,9 @@ public static class TileEdgeClosedLoopFinder
     /// currently in this collection.</returns>
     public static EdgeCollection<TileEdge> GetOuterClosedLoop(this EdgeCollection<TileEdge> edgeColl)
     {
-        (Dictionary<TileEdge, PolyEdge> tileToPolyMap, Dictionary<PolyEdge, TileEdge> polyToTileMap) = _InitTilePolyBiDict(edgeColl);
+        Dictionary<PolyEdge, TileEdge> polyToTileMap = _InitTilePolyBiDict(edgeColl);
         SortedList<int, PolygonSplittingGraphNode> polygonNodes = _CreatePolygonGraphSplittingNodes(polyToTileMap);
-        int[,] adjMatrix = _MakeAdjMatrix(polygonNodes);
-        ConnectedNodeGroup group = new ConnectedNodeGroup(0, polygonNodes, adjMatrix);
+        var group = new ConnectedNodeGroup(0, polygonNodes);
         List<PolygonSplittingGraphNode> outerNodes = group.outerPerimNodes;
         List<TileEdge> outerEdges = _ConvertPolygonNodesToPolyEdges(outerNodes, polyToTileMap);
         return new EdgeCollection<TileEdge>(outerEdges);
@@ -39,9 +38,8 @@ public static class TileEdgeClosedLoopFinder
     public static List<EdgeCollection<TileEdge>> GetSmallClosedLoops(this EdgeCollection<TileEdge> edgeColl)
     {
         EdgeCollection<TileEdge> connectedColl = edgeColl.GetOrderedCollection();
-        (Dictionary<TileEdge, PolyEdge> tileToPolyMap, Dictionary<PolyEdge, TileEdge> polyToTileMap) = _InitTilePolyBiDict(connectedColl);
+        Dictionary<PolyEdge, TileEdge> polyToTileMap = _InitTilePolyBiDict(connectedColl);
         SortedList<int, PolygonSplittingGraphNode> polygonNodes = _CreatePolygonGraphSplittingNodes(polyToTileMap);
-        int[,] adjMatrix = _MakeAdjMatrix(polygonNodes);
         var graph = new PolygonSplittingGraph(polygonNodes.Values.ToList());
         List<ChordlessPolygon> smallLoops = graph.GetMinCycles();
 
@@ -60,17 +58,15 @@ public static class TileEdgeClosedLoopFinder
     /// </summary>
     /// <param name="edgeColl"></param>
     /// <returns>Two Dictionaries that map TileEdges to their respective PolyEdges and vice versa.</returns>
-    private static (Dictionary<TileEdge, PolyEdge>, Dictionary<PolyEdge, TileEdge>) _InitTilePolyBiDict(EdgeCollection<TileEdge> edgeColl)
+    private static Dictionary<PolyEdge, TileEdge> _InitTilePolyBiDict(EdgeCollection<TileEdge> edgeColl)
     {
-        var tileToPolyMap = new Dictionary<TileEdge, PolyEdge>();
         var polyToTileMap = new Dictionary<PolyEdge, TileEdge>();
         foreach (TileEdge tileEdge in edgeColl)
         {
             var polyEdge = new PolyEdge(AxisFuncs.CoordToIsoAxis(tileEdge.a), AxisFuncs.CoordToIsoAxis(tileEdge.b));
-            tileToPolyMap[tileEdge] = polyEdge;
             polyToTileMap[polyEdge] = tileEdge;
         }
-        return (tileToPolyMap, polyToTileMap);
+        return polyToTileMap;
     }
 
     /// <summary>
@@ -102,21 +98,6 @@ public static class TileEdgeClosedLoopFinder
         }
 
         return polygonNodes;
-    }
-
-    private static int[,] _MakeAdjMatrix(SortedList<int, PolygonSplittingGraphNode> polygonNodes)
-    {
-        var adjMatrix = new int[polygonNodes.Count, polygonNodes.Count];
-        foreach (PolygonSplittingGraphNode node in polygonNodes.Values)
-        {
-            int nodeID = node.id;
-            foreach (int neighbourID in node.connectedNodeIDs)
-            {
-                adjMatrix[nodeID, neighbourID] = 1;
-                adjMatrix[neighbourID, nodeID] = 1;
-            }
-        }
-        return adjMatrix;
     }
     
     /// <summary>

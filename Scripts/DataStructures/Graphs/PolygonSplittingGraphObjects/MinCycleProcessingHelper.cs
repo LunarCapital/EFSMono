@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using EFSMono.Scripts.Autoload;
 using Godot;
 using EFSMono.Scripts.DataStructures.Geometry;
 using static EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects.MinCycleManagementHelper;
@@ -13,7 +14,7 @@ namespace EFSMono.Scripts.DataStructures.Graphs.PolygonSplittingGraphObjects
 /// </summary>
 public static class MinCycleProcessingHelper
 {
-        /// <summary>
+    /// <summary>
     /// Partitions a connected node group by:
     ///     1. Repeatedly running BFS on its nodes to find cycles and removing edges for the next BFS until no more
     ///        cycles can be found.
@@ -25,134 +26,138 @@ public static class MinCycleProcessingHelper
     /// <param name="connectedGroup">ConnectedNodeGroup that is being partitioned.</param>
     /// <param name="idsContainedInGroup">The IDs of the ConnectedNodeGroups contained within <param>connectedGroup</param></param>
     /// <param name="connectedGroups">List of all ConnectedNodeGroups.</param>
+    /// <param name="nodes">List of all nodes.</param>
+    /// <param name="holes">Holes of the polygon that was made into a PolygonSplittingGraph.</param>
     /// <returns></returns>
     public static List<ChordlessPolygon> PartitionConnectedNodeGroup(ConnectedNodeGroup connectedGroup,
                                                                 SortedDictionary<int, HashSet<int>> idsContainedInGroup,
                                                                 SortedList<int, ConnectedNodeGroup> connectedGroups,
-                                                                Dictionary<PolygonSplittingGraphNode, HashSet<int>> removedEdges,
                                                                 SortedList<int, PolygonSplittingGraphNode> nodes,
-                                                                int[,] adjMatrix, List<Vector2>[] holes)
+                                                                List<Vector2>[] holes)
     {
-        var partitions = new List<ChordlessPolygon>();
-
-        List<PolygonSplittingGraphNode> validNodes;
-        while ((validNodes = GetAllNodesWithOnlyTwoEdges(connectedGroup, removedEdges, adjMatrix)).Count > 0)
-        { //select a node with 2 or less valid edges, and break the loop if none can be found
-            try
-            {
-                var potentialCycles = new List<List<PolygonSplittingGraphNode>>();
-                foreach (PolygonSplittingGraphNode node in validNodes)
-                {
-                    GD.PrintS("GETTING CYCLE INCLUSIVE OF NODE WITH ID " + node.id + " AT: " + node.x + ", " + node.y);
-                    List<PolygonSplittingGraphNode> cycle = _BFSToFindCycle(node, connectedGroup, removedEdges, nodes, adjMatrix);
-                    potentialCycles.Add(cycle);
-                }
-                GD.PrintS("FINISHED CYCLING FOR VALID NODES");
-                List<PolygonSplittingGraphNode> smallestCycle = GetSmallestCycle(potentialCycles);
-                foreach (PolygonSplittingGraphNode node in smallestCycle)
-                {
-                    GD.PrintS("smallest cycle contains vertex: " + node.x + ", " + node.y);
-                }
-                removedEdges = UpdateRemovedEdges(adjMatrix, smallestCycle, connectedGroup, removedEdges);
-                removedEdges = AddNewBridgesToRemovedEdges(connectedGroup, adjMatrix, removedEdges);
-                if (IsCycleHole(smallestCycle, holes)) continue;
-                partitions.Add(_FinalisePartition(smallestCycle, connectedGroup, connectedGroups, idsContainedInGroup, nodes));
-            }
-            catch (ArgumentOutOfRangeException e)
-            {
-                GD.PrintS(e.Message);
-            }
-        }
-
-        foreach (PolygonSplittingGraphNode node in connectedGroup.nodes.Values)
+        var outerPerimCycle = new List<PolygonSplittingGraphNode>();
+        var polyCycles = new List<List<PolygonSplittingGraphNode>>();
+        var holeCycles = new List<List<PolygonSplittingGraphNode>>();
+        
+        List<List<PolygonSplittingGraphNode>> allFaces = _GetAllFaces(connectedGroup);
+        var uniqueFaces = new List<List<Vector2>>();
+        foreach (List<PolygonSplittingGraphNode> newFace in allFaces)
         {
-            GD.PrintS("for node with id: " + node.id + " at coord: " + node.x + ", " + node.y + ", valid edges remaining: " + GetNumOfNodesValidEdges(connectedGroup, node, removedEdges[node], adjMatrix));
+            //construct Vector2[] or List<Vector2> describing face perim in Vector2s
+            var newFacePerim = new Vector2[newFace.Count];
+            for (int i = 0; i < newFace.Count; i++)
+            {
+                PolygonSplittingGraphNode node = newFace[i];
+                newFacePerim[i] = new Vector2(node.x, node.y);
+            }
+            
+            bool newFaceUnique = true;
+            foreach (List<Vector2> uniqueFace in uniqueFaces)
+            {
+                if (GeometryFuncs.ArePolysIdentical(uniqueFace.ToArray(), newFacePerim))
+                {
+                    newFaceUnique = false;
+                    break;
+                }
+            }
+
+            if (newFaceUnique)
+            {
+                uniqueFaces.Add(newFacePerim.ToList());
+                if (IsCycleHole(newFacePerim, holes))
+                {
+                    holeCycles.Add(newFace);
+                }
+                else if (IsCycleOuterPerim(newFacePerim, connectedGroup.outerPerimNodes))
+                {
+                    outerPerimCycle.AddRange(newFace);
+                }
+                else if (IsCycleComplex(newFacePerim))
+                {
+                    continue;
+                }
+                else
+                {
+                    polyCycles.Add(newFace);
+                }
+            }
         }
 
+        List<ChordlessPolygon> innerHoles = holeCycles.Select(_FinaliseInnerHole).ToList();
+        var partitions = new List<ChordlessPolygon>();
+        foreach (List<PolygonSplittingGraphNode> polyCycle in polyCycles)
+        {
+            partitions.Add(_FinalisePartition(polyCycle, connectedGroup, connectedGroups,
+                                                   idsContainedInGroup, nodes, innerHoles));
+        }
+        
+        if (partitions.Count == 0 && outerPerimCycle.Count > 0) //planar face that represents the outer perim is only relevant IFF there are no other (non-hole) faces
+            partitions.Add(_FinalisePartition(outerPerimCycle, connectedGroup, connectedGroups,
+                                                   idsContainedInGroup, nodes, innerHoles));
         return partitions;
     }
-        
-    /// <summary>
-    /// Of a <param>startNode</param> with only two edges, removes one (denoted U->start) and uses BFS to find the
-    /// shortest path from start->U (because our graph is undirected and unweighted). The min cycle is then the BFSd
-    /// path from start->U + the removed edge U->start.
-    /// This is guaranteed to work for PolygonSplittingGraph as all edges are strictly orthogonal and at no point will
-    /// there ever be an absence of nodes with exactly two edges (until all nodes have been removed).
-    /// </summary>
-    /// <param name="startNode">Node that the BFS starts from.</param>
-    /// <param name="connectedNodeGroup">Connected Group that we are limited to searching within.</param>
-    /// <param name="removedEdges">Edges that have been removed and cannot be taken.</param>
-    /// <returns>A list of Vector2s containing a cycle from <param>startNode</param> back to itself. As per the list
-    /// convention list[start] == list[end].</returns>
-    private static List<PolygonSplittingGraphNode> _BFSToFindCycle(PolygonSplittingGraphNode startNode,
-                                                    ConnectedNodeGroup connectedNodeGroup,
-                                                    Dictionary<PolygonSplittingGraphNode, HashSet<int>> removedEdges,
-                                                    SortedList<int, PolygonSplittingGraphNode> nodes,
-                                                    int[,] adjMatrix)
-    {
-        var discovered = new HashSet<int>();
-        var queueOfIDs = new Queue<int>();
-        Dictionary<int, int> parent = connectedNodeGroup.nodes.Values.ToDictionary(node => node.id, node => -1);
-        queueOfIDs.Enqueue(startNode.id);
-        GD.PrintS("Enqueued Starting Node with id: " + startNode.id + " at location: " + startNode.x + ", " + startNode.y);
-        
-        //remove one of startNode's two edges (temporarily just for this method)
-        int removeID = -1;
-        for (int i = 0; i < adjMatrix.GetLength(1); i++)
-        {
-            if (adjMatrix[startNode.id, i] == 1 && !removedEdges[startNode].Contains(i))
-            {
-                removeID = i;
-                break;
-            }
-        }
-        if (removeID == -1) throw new ArgumentOutOfRangeException("Despite this method, " + nameof(_BFSToFindCycle) + " being called strictly with a starting node has two edges, those edges could not be found.");
-        
-        while (queueOfIDs.Count > 0)
-        {
-            int id = queueOfIDs.Dequeue();
-            PolygonSplittingGraphNode node = nodes[id];
-            if (id == removeID) break;
-            for (int i = 0; i < adjMatrix.GetLength(1); i++)
-            {
-                PolygonSplittingGraphNode neighbourNode = nodes[i];
-                if (!connectedNodeGroup.ContainsNode(neighbourNode) || removedEdges[node].Contains(i) || adjMatrix[id,i] == 0) continue;
-                if (id == startNode.id && i == removeID || id == removeID && i == startNode.id) continue; //ignore removed edges
-                if (!discovered.Contains(i) && parent[id] != i)
-                {
-                    discovered.Add(i);
-                    parent[i] = id;
-                    queueOfIDs.Enqueue(i);
-                }
-            }
-        }
-        return _ExtractCycle(parent, removeID, startNode, nodes);
-    }
 
-    private static List<PolygonSplittingGraphNode> _ExtractCycle(Dictionary<int, int> parent, int removeID,
-                                                                 PolygonSplittingGraphNode startNode,
-                                                                 SortedList<int, PolygonSplittingGraphNode> nodes)
+    /// <summary>
+    /// Given the input <param>connectedGroup</param>, gets all faces by running the following algorithm for EACH
+    /// CONNECTION for EVERY NODE:
+    ///     1. Ensure that all nodes have their connections ordered counter-clockwise (already done in ConnectedNodeGroup
+    ///        constructor)
+    ///     2. Given some starting node S, travel any of its connections, which we will define as C
+    ///     3. From C, pick its connection that is next in order from the previous node (in this case, S)
+    ///     4. Repeat until we get back to S, and now we have a face.
+    /// This method gets all faces, many of which will be duplicates.
+    /// A better explanation is from here: https://math.stackexchange.com/questions/8140/find-all-cycles-faces-in-a-graph
+    /// </summary>
+    /// <param name="connectedGroup"></param>
+    /// <returns></returns>
+    private static List<List<PolygonSplittingGraphNode>> _GetAllFaces(ConnectedNodeGroup connectedGroup)
     {
-        foreach (int key in parent.Keys)
+        var allFaces = new List<List<PolygonSplittingGraphNode>>();
+        foreach (PolygonSplittingGraphNode node in connectedGroup.nodes.Values)
         {
-            GD.PrintS("node key: " + key + " maps to " + parent[key]);
+            foreach (int connID in node.connectedNodeIDs)
+            {
+                if (!connectedGroup.nodes.ContainsKey(connID)) continue; //thanks to bridges a node may have a connection to a node that is not present in its node group (bridges split node groups)
+                var face = new List<PolygonSplittingGraphNode>();
+                face.Add(node);
+                int prevID = node.id;
+                int currentID = connID;
+                do
+                {
+                    face.Add(connectedGroup.nodes[currentID]);
+                    int nextID;
+                    do
+                    { //in case of bridge, keep getting nextID if it does not exist in connectedGroup
+                        nextID = connectedGroup.GetCCWNextNodeID(prevID, currentID);
+                    } while (!connectedGroup.nodes.ContainsKey(nextID));
+                    prevID = currentID;
+                    currentID = nextID;
+                } while (prevID != node.id);
+                //face.Add(node);
+                allFaces.Add(face);
+            }
         }
-        
-        var cycle = new List<PolygonSplittingGraphNode>();
-        int prevID = removeID;
-        do
-        {
-            PolygonSplittingGraphNode node = nodes[prevID];
-            cycle.Add(node);
-            GD.PrintS("Added node with id: " + node.id + " at coord: " + node.x + ", " + node.y);
-            prevID = parent[prevID];
-        } while (prevID != -1);
-        cycle.Reverse();
-        cycle.Add(startNode);
-        cycle.ForEach(node => GD.PrintS("extracted cycle node is at coords: " + node.x + ", " + node.y));
-        return cycle;
+        return allFaces;
     }
     
+    /// <summary>
+    /// Creates a ChordlessPolygon with just an outer perimeter and flags it as a hole.
+    /// </summary>
+    /// <param name="cycle"></param>
+    /// <returns>A ChordlessPolygon flagged as a hole, just with an outer perimeter.</returns>
+    private static ChordlessPolygon _FinaliseInnerHole(List<PolygonSplittingGraphNode> cycle)
+    {
+        var cyclePerim = new Vector2[cycle.Count];
+        for (int i = 0; i < cycle.Count; i++)
+        {
+            PolygonSplittingGraphNode node = cycle[i];
+            cyclePerim[i] = new Vector2(node.x, node.y);
+        }
+        var holePolygon = new ChordlessPolygon(cyclePerim, new List<Vector2>[0],
+                                        new Dictionary<Vector2, HashSet<Vector2>>(), true);
+        return holePolygon;
+    }
+
     /// <summary>
     /// Final step in partitioning a ConnectedNodeGroup, by converting it into a RectangularPolygon and checking if
     /// the partition contains any holes (AKA the outerPerim of any ConnectedNodeGroups its parent ConnectedNodeGroup
@@ -162,11 +167,14 @@ public static class MinCycleProcessingHelper
     /// <param name="connectedGroup">The ConnectedNodeGroup <param>cycle</param> was derived from.</param>
     /// <param name="connectedGroups">A list of all ConnectedNodeGroups.</param>
     /// <param name="idsContainedInGroup">The IDs of the ConnectedNodeGroups contained within <param>connectedGroup</param></param>
+    /// <param name="nodes"></param>
+    /// <param name="innerHoles">Holes extracted from the same ConnectedNodeGroup.</param>
     /// <returns></returns>
     private static ChordlessPolygon _FinalisePartition(List<PolygonSplittingGraphNode> cycle, ConnectedNodeGroup connectedGroup,
                                                 SortedList<int, ConnectedNodeGroup> connectedGroups, 
                                                 SortedDictionary<int, HashSet<int>> idsContainedInGroup,
-                                                SortedList<int, PolygonSplittingGraphNode> nodes)
+                                                SortedList<int, PolygonSplittingGraphNode> nodes,
+                                                List<ChordlessPolygon> innerHoles)
     {
         var cycleAsVectorArray = new Vector2[cycle.Count];
         for (int i = 0; i < cycle.Count; i++)
@@ -176,6 +184,7 @@ public static class MinCycleProcessingHelper
         }
         
         var potentialHoles = new List<List<Vector2>>();
+        potentialHoles.AddRange(innerHoles.Select(innerHole => innerHole.outerPerim.ToList()));
         var bridges = new Dictionary<Vector2, HashSet<Vector2>>();
         foreach (int connectedGroupID in idsContainedInGroup[connectedGroup.id])
         {
@@ -183,17 +192,19 @@ public static class MinCycleProcessingHelper
             potentialHoles.Add(groupInside.outerPerimSimplified.ToList());
             
             foreach (int nodeID in groupInside.bridges.Keys)
-            { 
+            {
+                if (!cycle.Exists(x => x.id == nodeID)) continue;
                 var nodeCoord = new Vector2(nodes[nodeID].x, nodes[nodeID].y);
                 foreach (int neighbourID in groupInside.bridges[nodeID])
                 {
+                    if (!cycle.Exists(x => x.id == neighbourID)) continue;
                     var neighbourCoord = new Vector2(nodes[neighbourID].x, nodes[neighbourID].y);
                     if (!bridges.ContainsKey(nodeCoord)) bridges[nodeCoord] = new HashSet<Vector2>();
                     bridges[nodeCoord].Add(neighbourCoord);
                 }
             }
         }
-        return new ChordlessPolygon(cycleAsVectorArray, potentialHoles.ToArray(), bridges);
+        return new ChordlessPolygon(cycleAsVectorArray, potentialHoles.ToArray(), bridges, false);
     }
 }
 }

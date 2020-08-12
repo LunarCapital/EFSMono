@@ -6,7 +6,7 @@ namespace EFSMono.Scripts.Autoload
 /// Auto loaded class.
 /// Contains easily accessible sorting-related functions.
 /// </summary>
-public static class SortFuncs
+public class SortFuncs : Node
 {
     public static int SortByXThenYAscending(Vector2 a, Vector2 b)
     {
