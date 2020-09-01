@@ -1,12 +1,19 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30406.217
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EFSMono", "EFSMono.csproj", "{C508B9F5-2C04-4339-8510-A4C12DCEDE5F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D0224F54-8AD2-4649-9C55-B21979701A4E}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-	Debug|Any CPU = Debug|Any CPU
-	ExportDebug|Any CPU = ExportDebug|Any CPU
-	ExportRelease|Any CPU = ExportRelease|Any CPU
+		Debug|Any CPU = Debug|Any CPU
+		ExportDebug|Any CPU = ExportDebug|Any CPU
+		ExportRelease|Any CPU = ExportRelease|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{C508B9F5-2C04-4339-8510-A4C12DCEDE5F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -15,5 +22,11 @@ Global
 		{C508B9F5-2C04-4339-8510-A4C12DCEDE5F}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
 		{C508B9F5-2C04-4339-8510-A4C12DCEDE5F}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
 		{C508B9F5-2C04-4339-8510-A4C12DCEDE5F}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E1E54B28-0C3F-49EA-B7A2-FF029D2546D4}
 	EndGlobalSection
 EndGlobal

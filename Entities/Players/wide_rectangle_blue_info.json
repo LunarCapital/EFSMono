@@ -1,0 +1,38 @@
+[
+	{
+		"anim_frame": 0,
+		"anim_name": "idle",
+		"sheet_position": "(0, 0)",
+		"size": "(64, 64)",
+		"split_index": 2,
+		"split_position": "(-32, -48)",
+		"z_index": 0
+	},
+	{
+		"anim_frame": 0,
+		"anim_name": "idle",
+		"sheet_position": "(64, 0)",
+		"size": "(64, 64)",
+		"split_index": 7,
+		"split_position": "(-64, -32)",
+		"z_index": 0
+	},
+	{
+		"anim_frame": 0,
+		"anim_name": "idle",
+		"sheet_position": "(128, 0)",
+		"size": "(64, 64)",
+		"split_index": 11,
+		"split_position": "(0, -32)",
+		"z_index": 0
+	},
+	{
+		"anim_frame": 0,
+		"anim_name": "idle",
+		"sheet_position": "(192, 0)",
+		"size": "(64, 64)",
+		"split_index": 16,
+		"split_position": "(-32, -16)",
+		"z_index": 0
+	}
+]

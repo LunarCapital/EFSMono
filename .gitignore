@@ -8,8 +8,9 @@ export_presets.cfg
 
 # Mono-specific ignores
 .mono/
+.vs/
 .vscode/
 .idea/
 .import/
 data_*/
-/Scripts/External/
+/Common/ExternalScripts/

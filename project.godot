@@ -16,17 +16,17 @@ _global_script_class_icons={
 [application]
 
 config/name="EFSMono"
-run/main_scene="res://Scenes/Main.tscn"
+run/main_scene="res://Common/Main.tscn"
 config/icon="res://icon.png"
 
 [autoload]
 
-Globals="*res://Scripts/Autoload/Globals.cs"
-SortFuncs="*res://Scripts/Autoload/SortFuncs.cs"
-TileFuncs="*res://Scripts/Autoload/TileFuncs.cs"
-AxisFuncs="*res://Scripts/Autoload/AxisFuncs.cs"
-GeometryFuncs="*res://Scripts/Autoload/GeometryFuncs.cs"
-LayersFuncs="*res://Scripts/Autoload/LayersFuncs.cs"
+Globals="*res://Common/Autoload/Globals.cs"
+AxisFuncs="*res://Common/Autoload/AxisFuncs.cs"
+GeometryFuncs="*res://Common/Autoload/GeometryFuncs.cs"
+LayersFuncs="*res://Common/Autoload/LayersFuncs.cs"
+SortFuncs="*res://Common/Autoload/SortFuncs.cs"
+TileFuncs="*res://Common/Autoload/TileFuncs.cs"
 
 [display]
 
@@ -128,6 +128,11 @@ move_down={
 move_left={
 "deadzone": 0.5,
 "events": [ Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":0,"alt":false,"shift":false,"control":false,"meta":false,"command":false,"pressed":false,"scancode":65,"unicode":0,"echo":false,"script":null)
+ ]
+}
+move_jump={
+"deadzone": 0.5,
+"events": [ Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":0,"alt":false,"shift":false,"control":false,"meta":false,"command":false,"pressed":false,"scancode":32,"unicode":0,"echo":false,"script":null)
  ]
 }
 

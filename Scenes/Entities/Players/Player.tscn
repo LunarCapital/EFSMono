@@ -1,9 +1,0 @@
-[gd_scene load_steps=3 format=2]
-
-[ext_resource path="res://Scripts/Entities/Players/Player.cs" type="Script" id=1]
-[ext_resource path="res://Scenes/Entities/Entity.tscn" type="PackedScene" id=2]
-
-[node name="Player" instance=ExtResource( 2 )]
-collision_layer = 2
-collision_mask = 5
-script = ExtResource( 1 )
