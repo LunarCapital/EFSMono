@@ -1,10 +1,10 @@
 ﻿using System.Linq;
-using EFSMono.Entities;
 using EFSMono.SystemModules.EntityBirthDeathModule.HubMessages;
 using EFSMono.SystemModules.TileProcessorModule.TileProcessorObjects;
 using Godot;
 using TinyMessenger;
 using System.Collections.Generic;
+using EFSMono.GameObjects;
 
 namespace EFSMono.SystemModules.EntityBirthDeathModule
 {

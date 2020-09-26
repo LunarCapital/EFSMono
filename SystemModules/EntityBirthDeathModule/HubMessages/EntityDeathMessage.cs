@@ -1,4 +1,4 @@
-﻿using EFSMono.Entities;
+﻿using EFSMono.GameObjects;
 using TinyMessenger;
 
 namespace EFSMono.SystemModules.EntityBirthDeathModule.HubMessages

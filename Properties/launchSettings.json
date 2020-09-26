@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "EFSMono": {
+      "commandName": "Project"
+    }
+  }
+}

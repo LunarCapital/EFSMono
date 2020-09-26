@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=2]
+[gd_scene load_steps=3 format=2]
 
 [ext_resource path="res://Worlds/Tilesets/simple.tres" type="TileSet" id=1]
+[ext_resource path="res://GameObjects/Players/Player.tscn" type="PackedScene" id=2]
 
 [node name="World" type="Node2D"]
 
@@ -41,6 +42,9 @@ cell_size = Vector2( 64, 32 )
 cell_tile_origin = 1
 cell_y_sort = true
 format = 1
+
+[node name="Player" parent="Layer3" instance=ExtResource( 2 )]
+position = Vector2( 64, -144 )
 
 [node name="Layer4" type="TileMap" parent="."]
 z_index = 4

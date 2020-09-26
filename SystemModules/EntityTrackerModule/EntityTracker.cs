@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using EFSMono.Entities;
+using EFSMono.GameObjects;
 using EFSMono.SystemModules.EntityBirthDeathModule;
 using EFSMono.SystemModules.EntityTrackerModule.HubMessages;
 using EFSMono.SystemModules.EntityTrackerModule.Objects;
@@ -43,9 +43,9 @@ namespace EFSMono.SystemModules.EntityTrackerModule
             if (!this._ready) return;
             foreach (Entity entity in this._entityPackage.entitiesByID.Values)
             {
-                if (entity.falling)
+                if (entity.gravityComponent.inAir)
                 {
-                    if (entity.raiseTileMapRequest)
+                    if (entity.gravityComponent.raiseHeight)
                     {
                         this.CallDeferred(nameof(_MakeEntityRise), entity);
                     }
@@ -60,7 +60,7 @@ namespace EFSMono.SystemModules.EntityTrackerModule
                 }
                 else
                 {
-                    entity.SetGrounded();
+                    entity.gravityComponent.SetGrounded();
                 }
             }
         }
@@ -136,11 +136,10 @@ namespace EFSMono.SystemModules.EntityTrackerModule
 
         private void _MakeEntityFall(Entity entity)
         {
-            GD.PrintS("fall called");
             var currentTileMap = (TileMap)entity.GetParent();
             TileMap lowerTileMap = this._tileMaps[currentTileMap.ZIndex - 1];
 
-            entity.SetFall();
+            entity.gravityComponent.SetInAir();
             currentTileMap.RemoveChild(entity);
             lowerTileMap.AddChild(entity);
             this._HandleEntityZIndexChange(entity, lowerTileMap.ZIndex - 1);
@@ -148,11 +147,10 @@ namespace EFSMono.SystemModules.EntityTrackerModule
 
         private void _MakeEntityRise(Entity entity)
         {
-            GD.PrintS("rise called");
             var currentTileMap = (TileMap)entity.GetParent();
             TileMap higherTileMap = this._tileMaps[currentTileMap.ZIndex + 1];
 
-            entity.RaiseZIndex();
+            entity.gravityComponent.SetAscendParameters();
             currentTileMap.RemoveChild(entity);
             higherTileMap.AddChild(entity);
             this._HandleEntityZIndexChange(entity, higherTileMap.ZIndex - 1);

@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using EFSMono.Common.Autoload;
+using EFSMono.Preloading;
 using EFSMono.SystemModules.EntityBirthDeathModule;
 using EFSMono.SystemModules.EntityTrackerModule;
 using EFSMono.SystemModules.PhysicsControllerModule;
@@ -22,6 +24,8 @@ namespace EFSMono.SystemModules
 
         public override void _Ready()
         {
+            this._PreloadResources();
+
             var controllerNode = (Node2D)this.GetNode((Globals.ControllerNodeName));
             var physicsToEntityHub = new TinyMessengerHub();
 
@@ -32,10 +36,38 @@ namespace EFSMono.SystemModules
 
             this._entityTracker.ReceiveMsgHub(physicsToEntityHub);
 
-            var watch = System.Diagnostics.Stopwatch.StartNew();
+            /*var watch = System.Diagnostics.Stopwatch.StartNew();
             this._LoadWorld();
             watch.Stop();
-            GD.PrintS("world load took: " + watch.ElapsedMilliseconds + " ms.");
+            GD.PrintS("world load took: " + watch.ElapsedMilliseconds + " ms.");*/
+        }
+
+        private void _PreloadResources()
+        {
+            Preloader.Preload();
+        }
+
+        public void SwitchWorld(PackedScene packedWorld)
+        {
+            if (packedWorld is null) throw new ArgumentNullException(nameof(packedWorld));
+            this._UnloadWorld();
+            var newWorld = (Node2D)packedWorld.Instance();
+            this.AddChild(newWorld);
+            this._LoadWorld();
+        }
+
+        private void _UnloadWorld()
+        {
+            if (this.HasNode(Globals.WorldNodeName))
+            {
+                GD.PrintS("has world");
+            }
+            else if (this.HasNode("Menu"))
+            {
+                GD.PrintS("has title");
+            }
+
+            this._physicsControl.UnloadWorld();
         }
 
         private void _LoadWorld()

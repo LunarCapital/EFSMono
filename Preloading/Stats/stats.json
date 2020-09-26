@@ -1,0 +1,8 @@
+[
+    {"id":0,"name":"Gravity","default":16},
+    {"id":1,"name":"BonusGrav","default":320},
+    {"id":2,"name":"InitJumpVel","default":-12},
+    {"id":3,"name":"MoveSpeed","default":200},
+    {"id":4,"name":"DashSpeed","default":2000},
+    {"id":5,"name":"DashTime","default":0.15}
+]

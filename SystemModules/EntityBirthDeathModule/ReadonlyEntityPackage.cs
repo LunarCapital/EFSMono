@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using EFSMono.Entities;
+using EFSMono.GameObjects;
 using Godot;
 using TinyMessenger;
 

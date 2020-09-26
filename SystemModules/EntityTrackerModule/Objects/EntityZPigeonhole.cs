@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using Godot;
 
 namespace EFSMono.SystemModules.EntityTrackerModule.Objects
 {
@@ -15,7 +14,7 @@ namespace EFSMono.SystemModules.EntityTrackerModule.Objects
     class EntityZPigeonhole
     {
         public int entityID { get; }
-        private SortedList<int, HashSet<int>> _zIndexToAreaShapeID; //note that this is the shape's RID ID, not its index within the area2d.
+        private readonly SortedList<int, HashSet<int>> _zIndexToAreaShapeID; //note that this is the shape's RID ID, not its index within the area2d.
 
         public EntityZPigeonhole(int entityID, int numTileMaps)
         {

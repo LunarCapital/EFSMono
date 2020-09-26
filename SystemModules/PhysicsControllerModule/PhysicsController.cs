@@ -33,7 +33,7 @@ namespace EFSMono.SystemModules.PhysicsControllerModule
         private Dictionary<RID, List<SegmentShape2D>> _wallSB2DToSegments;
         private Dictionary<RID, List<SegmentShape2D>> _ledgeSB2DToSegments;
 
-        private Dictionary<int, Area2DMonitor> _area2DMonitors;
+        private readonly Dictionary<int, Area2DMonitor> _area2DMonitors;
 
         public PhysicsController(TinyMessengerHub toEntityHub)
         {
@@ -95,10 +95,10 @@ namespace EFSMono.SystemModules.PhysicsControllerModule
         public void UnloadWorld()
         {
             this._FreeRIDs();
-            if (!(this._entityChangedZIndexToken is null)) {
+            /*if (!(this._entityChangedZIndexToken is null)) {
                 this._toEntityHub.Unsubscribe(_entityChangedZIndexToken);
-                this._entityChangedZIndexToken.Dispose();
-            }
+                //this._entityChangedZIndexToken.Dispose();
+            }*/ //TODO evaluate if i should really be freeing tokens on unload
         }
 
         /// <summary>

@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using EFSMono.Common.Autoload;
-using EFSMono.Entities;
+using EFSMono.GameObjects;
 using EFSMono.SystemModules.EntityBirthDeathModule;
 using EFSMono.SystemModules.SplitSpritePaintingModule.Helpers;
 using EFSMono.SystemModules.SplitSpritePaintingModule.SplitSpritePaintingObjects;
@@ -11,19 +10,19 @@ using Godot;
 
 namespace EFSMono.SystemModules.SplitSpritePaintingModule
 {
-	/// <summary>
-	/// A class that uses godot's VisualServer to draw sprites for entities.
-	/// "But hang on, can't entities just hold a Sprite node as a child?"
-	/// Yes, but thanks to Isometric 2D, there exists a problem where any entity that is bigger than a tile will always be
-	/// YSorted incorrectly.  Note to myself: If you ever forget what this looks like, there's an image on the google doc.
-	///
-	/// As such, every entity's sprite needs to be split into divisions (most likely 64x64) at some set intervals (likely 16
-	/// pixels) and rendered SEPARATELY so that they are YSorted separately and therefore correctly.  Additionally, each
-	/// division has its own ZIndex just in case an entity's sprite has different height levels (think of a tall entity that
-	/// spans two tile-heights, its top half would always be drawn UNDER any tiles on a higher Z level, even if the entity
-	/// is standing in front of them).
-	/// </summary>
-	public class SplitSpritePainter : Node2D
+    /// <summary>
+    /// A class that uses godot's VisualServer to draw sprites for entities.
+    /// "But hang on, can't entities just hold a Sprite node as a child?"
+    /// Yes, but thanks to Isometric 2D, there exists a problem where any entity that is bigger than a tile will always be
+    /// YSorted incorrectly.  Note to myself: If you ever forget what this looks like, there's an image on the google doc.
+    ///
+    /// As such, every entity's sprite needs to be split into divisions (most likely 64x64) at some set intervals (likely 16
+    /// pixels) and rendered SEPARATELY so that they are YSorted separately and therefore correctly.  Additionally, each
+    /// division has its own ZIndex just in case an entity's sprite has different height levels (think of a tall entity that
+    /// spans two tile-heights, its top half would always be drawn UNDER any tiles on a higher Z level, even if the entity
+    /// is standing in front of them).
+    /// </summary>
+    public class SplitSpritePainter : Node2D
 	{
         private TileMapList _tileMaps;
         private ReadonlyEntityPackage _entityPackage;
@@ -41,7 +40,7 @@ namespace EFSMono.SystemModules.SplitSpritePaintingModule
                 if (this._entityIDToDrawPackage.TryGetValue(entity.GetRid().GetId(), out EntityDrawPackage drawPackage))
                 {
                     drawPackage.FreeDrawnRIDs();
-                    drawPackage.DrawSplitSprites(this._tileMaps, tileMapZIndex, entity.Position, entity.spriteDrawPos);
+                    drawPackage.DrawSplitSprites(this._tileMaps, tileMapZIndex, entity.Position, entity.gravityComponent.spriteDrawHeightPos);
                 }
             }
         }

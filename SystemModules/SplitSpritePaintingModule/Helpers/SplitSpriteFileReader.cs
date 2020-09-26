@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using EFSMono.Common.Extensions;
+using EFSMono.Common.IO;
 using EFSMono.SystemModules.SplitSpritePaintingModule.SplitSpritePaintingObjects;
 using Godot;
 using Newtonsoft.Json.Linq;
@@ -40,12 +40,10 @@ namespace EFSMono.SystemModules.SplitSpritePaintingModule.Helpers
         /// <param name="spritePathPrefix"></param>
         /// <returns>A list of SplitSpriteInfo representing the data in the JSON pointed to by the input <paramref name="spritePathPrefix"/>.</returns>
         public static List<SplitSpriteInfo> OpenSplitSpriteJson(this string spritePathPrefix)
-        { 
-            var jsonStreamReader = new StreamReader(ProjectSettings.GlobalizePath(spritePathPrefix + SPRITE_JSON_PATH_SUFFIX));
-            string fullJSON = jsonStreamReader.ReadToEnd();
-            var a = JArray.Parse(fullJSON);
+        {
+            JArray jArray = JArrayReader.ReadJArray(spritePathPrefix + SPRITE_JSON_PATH_SUFFIX);
 
-            var allInfo = a.Select(token => new SplitSpriteInfo
+            var allInfo = jArray.Select(token => new SplitSpriteInfo
             {
                 sheetPosition = ((string)token[JSON_SHEET_POS]).StrToVec2(),
                 size = ((string)token[JSON_SIZE]).StrToVec2(),
@@ -59,7 +57,6 @@ namespace EFSMono.SystemModules.SplitSpritePaintingModule.Helpers
             {
                 GD.PrintS("sheetPos: " + info.sheetPosition + ", size: " + info.size + ", splitIndex: " + info.splitIndex + ", splitPos: " + info.splitPosition + ", zIndex: " + info.zIndex + ", animName: " + info.animName + ", animFrame: " + info.animFrame);
             }
-            jsonStreamReader.Close();
             return allInfo;
         }
     }
