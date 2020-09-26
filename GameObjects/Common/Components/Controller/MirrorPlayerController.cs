@@ -12,7 +12,7 @@ namespace EFSMono.GameObjects.Common.Components.Controller
     /// A player controller component that handles the control scheme for the player by maintaining its state, and delegating to said
     /// state the responsibilty of mapping player input to command objects.
     /// </summary>
-    public class PlayerController : IController
+    public class MirrorPlayerController : IController
     {
         public Vector2 motion { get; private set; }
         public Vector2 target { get; private set; }
@@ -21,12 +21,14 @@ namespace EFSMono.GameObjects.Common.Components.Controller
         private readonly Entity _parent;
         private IPlayerState _state;
 
-        public PlayerController(Entity parent)
+        public MirrorPlayerController(Entity parent)
         {
             this._actions = new Dictionary<ActionID, ActionComponent>();
             //TODO REPLACE WITH JSON LOADING
             this._actions[ActionID.Move] = new MoveAction();
-            //END REPLACE WIT JSON LOADING
+            this._actions[ActionID.Dash] = new DashAction();
+            this._actions[ActionID.Jump] = new JumpAction();
+            //END REPLACE WITH JSON LOADING
             this._parent = parent;
             this._state = new IdlePlayerState(this._parent);
         }

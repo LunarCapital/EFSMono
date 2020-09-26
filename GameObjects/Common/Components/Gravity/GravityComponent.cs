@@ -1,6 +1,7 @@
 ﻿using EFSMono.Common.Autoload;
 using EFSMono.GameObjects;
 using Godot;
+using StatID = EFSMono.Preloading.Stats.StatsEnumerator.StatID;
 
 namespace EFSMono.Entities.Common.Components.Gravity
 {
@@ -10,10 +11,6 @@ namespace EFSMono.Entities.Common.Components.Gravity
     /// </summary>
     public abstract class GravityComponent
     {
-        public const int Gravity = 16;
-        public const int BonusGrav = 320;
-        public const int InitialJumpVelocity = -12;
-
         private readonly Entity _parent;
 
         public abstract bool inAir { get; protected internal set; }
@@ -23,6 +20,8 @@ namespace EFSMono.Entities.Common.Components.Gravity
         public abstract float fallVelocity { get; protected internal set; }
         public abstract float spriteDrawHeightPos { get; protected set; }
 
+        private float _prevSpriteHeight;
+
         public GravityComponent(Entity parent)
         {
             this._parent = parent;
@@ -31,6 +30,7 @@ namespace EFSMono.Entities.Common.Components.Gravity
             this.airTime = 0;
             this.fallVelocity = 0;
             this.spriteDrawHeightPos = 0;
+            this._prevSpriteHeight = 0;
         }
 
         /// <summary>
@@ -41,14 +41,17 @@ namespace EFSMono.Entities.Common.Components.Gravity
         public virtual void ProcessFall(float delta) {
             if (this.inAir)
             {
-                this.fallVelocity += (Gravity + (this.airTime * BonusGrav)) * delta;
+                this.fallVelocity += (this._parent.statsComponent.GetTotalStat(StatID.Gravity) + (this.airTime * this._parent.statsComponent.GetTotalStat(StatID.BonusGrav))) * delta;
                 this.airTime += delta;
                 this.spriteDrawHeightPos += this.fallVelocity;
-
+                
                 if (this.spriteDrawHeightPos >= 0)
-                { //hit the ground
+                { //sprite height cannot go below 'floor'
                     this.spriteDrawHeightPos = 0;
-                    this.inAir = false;
+                    if (this._prevSpriteHeight == this.spriteDrawHeightPos)
+                    { //height pos unchanged, .'. ground
+                        this.inAir = false;
+                    }
                 }
                 else
                 { //high enough to be raised by a tilemap
@@ -57,6 +60,7 @@ namespace EFSMono.Entities.Common.Components.Gravity
                         this.raiseHeight = true;
                     }
                 }
+                this._prevSpriteHeight = this.spriteDrawHeightPos;
             }
         }
 

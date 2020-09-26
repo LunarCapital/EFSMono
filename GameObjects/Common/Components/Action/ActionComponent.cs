@@ -20,9 +20,6 @@ namespace EFSMono.GameObjects.Common.Components.Action
             this._bonusStats = new Dictionary<int, float>();
         }
 
-        public virtual void Execute(Entity entity)
-        {
-            if (entity is null) throw new ArgumentNullException(nameof(entity));
-        }
+        public abstract void Execute(Entity entity);
     }
 }

@@ -23,7 +23,7 @@ namespace EFSMono.GameObjects.Players
 
         public override IController CreateController(Entity parent)
         {
-            return new PlayerController(parent);
+            return new MirrorPlayerController(parent);
         }
 
         public override GravityComponent CreateGravityComp(Entity parent)

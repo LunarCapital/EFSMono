@@ -15,11 +15,19 @@ namespace EFSMono.Entities.Players.States
 
         public IPlayerState ParseInput(float delta, Vector2 motion, Vector2 target)
         {
-            if (Input.IsActionPressed("move_dash") && motion != Vector2.Zero)
-            {
-                return new DashPlayerState(this._parent, motion, 0.15F); //TODO put maxdashtime in a params component, holy fuck i'm coupling like crazy this could be bad
+            if (!this._parent.gravityComponent.inAir)
+            { //MUST BE ON GROUND
+                if (Input.IsActionPressed("move_dash") && motion != Vector2.Zero)
+                {
+                    return new DashPlayerState(this._parent, motion);
+                }
+                if (Input.IsActionPressed("move_jump"))
+                {
+                    this._parent.controller.GetAction(ActionID.Jump).Execute(this._parent);
+                }
+
             }
-            else if (motion != Vector2.Zero)
+            if (motion != Vector2.Zero)
             {
                 this._parent.controller.GetAction(ActionID.Move).Execute(this._parent);
                 return this;

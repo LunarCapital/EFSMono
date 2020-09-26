@@ -50,9 +50,9 @@ namespace EFSMono.GameObjects.Common.Components.Stats
         /// </summary>
         /// <param name="id">ID of </param>
         /// <returns></returns>
-        public float GetTotalStat(int id)
+        public float GetTotalStat(StatID id)
         {
-            return this._stats[(StatID)id] + this._bonus[(StatID)id];
+            return this._stats[id] + this._bonus[id];
         }
 
     }

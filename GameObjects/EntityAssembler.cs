@@ -19,7 +19,7 @@ namespace EFSMono.GameObjects
 
         public virtual IController CreateController(Entity parent)
         {
-            return new PlayerController(parent);
+            return new MirrorPlayerController(parent);
         }
 
         public virtual GravityComponent CreateGravityComp(Entity parent)
